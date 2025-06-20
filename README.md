@@ -1,4 +1,4 @@
-# Communication MCP Server
+# (MCP Utilities) Communication Server
 
 A Node.js TypeScript implementation of an MCP (Model Context Protocol) server that provides comprehensive email and WhatsApp communication capabilities. This is a complete conversion from the original Python implementation, maintaining 100% feature parity while adding TypeScript enhancements.
 
