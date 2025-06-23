@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import { Command } from 'commander';
-
-dotenv.config();
+import path from 'path';
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 interface Config {
   mongodb: {
@@ -28,6 +28,13 @@ interface Config {
     protocol: string;
     apiKey: string;
   };
+  perplexity: {
+    apiKey: string;
+  };
+  llamaIndex: {
+    apiKey: string;
+    vendorModel: string;
+  };
 }
 
 export function getConfig(): Config {
@@ -50,6 +57,9 @@ export function getConfig(): Config {
     .option('--typesense-port <port>', 'Typesense port')
     .option('--typesense-protocol <protocol>', 'Typesense protocol')
     .option('--typesense-api-key <key>', 'Typesense API key')
+    .option('--perplexity-api-key <key>', 'Perplexity API key')
+    .option('--llama-index-api-key <key>', 'LlamaIndex API key')
+    .option('--llama-index-vendor-model <model>', 'LlamaIndex vendor model')
     .option('--debug', 'Enable debug logging')
     .option('--non-interactive, -n', 'Run in non-interactive mode')
     .allowUnknownOption()
@@ -65,7 +75,7 @@ export function getConfig(): Config {
   const typesenseHost = options.typesenseHost || process.env.TYPESENSE_HOST || 'j51ouydaces0i2m7p-1.a1.typesense.net';
   const typesensePort = options.typesensePort ? parseInt(options.typesensePort, 10) : (process.env.TYPESENSE_PORT ? parseInt(process.env.TYPESENSE_PORT, 10) : 443);
   const typesenseProtocol = options.typesenseProtocol || process.env.TYPESENSE_PROTOCOL || 'https';
-  const typesenseApiKey = options.typesenseApiKey || process.env.TYPESENSE_API_KEY || null;
+  const typesenseApiKey = options.typesenseApiKey || process.env.TYPESENSE_API_KEY || "wgTfJoajCRXWWNlLILAdZh1bU66RA4wv";  //wgTfJoajCRXWWNlLILAdZh1bU66RA4wv
   
   // OAuth Configuration
   const oauthClientId = options.oauthClientId || process.env.OAUTH_CLIENT_ID || null;
@@ -78,6 +88,14 @@ export function getConfig(): Config {
   // WhatsApp Configuration
   const whatsappToken = options.whatsappToken || process.env.WHATSAPP_TOKEN || null;
   const whatsappUrl = options.whatsappUrl || process.env.WHATSAPP_URL || null;
+
+  // Perplexity Configuration
+  const perplexityApiKey = options.perplexityApiKey || process.env.PERPLEXITY_API_KEY || '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';
+
+
+  // LlamaIndex Configuration
+  const llamaIndexApiKey = options.llamaIndexApiKey || process.env.LLAMAINDEX_API_KEY || "llx-TNt937hyXcwVxNAdwXAZXKH89yJC1ofwO7xMPDExPnkwLAxR";
+  const llamaIndexVendorModel = options.llamaIndexVendorModel || process.env.LLAMAINDEX_VENDOR_MODEL || "gemini-2.0-flash-001";
 
   // Other options
   const debug = options.debug || false;
@@ -98,7 +116,9 @@ export function getConfig(): Config {
   console.log(`Final GMAIL_SCOPES: ${gmailScopes ? 'Set' : 'Not set'}`);
   console.log(`Final WHATSAPP_TOKEN: ${whatsappToken ? 'Set' : 'Not set'}`);
   console.log(`Final WHATSAPP_URL: ${whatsappUrl ? 'Set' : 'Not set'}`);
-
+  console.log(`Final PERPLEXITY_API_KEY: ${perplexityApiKey ? 'Set' : 'Not set'}`);
+  console.log(`Final LLAMAINDEX_API_KEY: ${llamaIndexApiKey ? 'Set' : 'Not set'}`);
+  console.log(`Final LLAMAINDEX_VENDOR_MODEL: ${llamaIndexVendorModel ? 'Set' : 'Not set'}`);
   // Validation warnings
   if (!oauthClientId || !oauthClientSecret) {
     console.warn('OAuth credentials not provided. Gmail functionality will be disabled.');
@@ -136,6 +156,13 @@ export function getConfig(): Config {
       port: typesensePort,
       protocol: typesenseProtocol,
       apiKey: typesenseApiKey,
+    },
+    perplexity: {
+      apiKey: perplexityApiKey,
+    },
+    llamaIndex: {
+      apiKey: llamaIndexApiKey,
+      vendorModel: llamaIndexVendorModel,
     },
   };
 }
