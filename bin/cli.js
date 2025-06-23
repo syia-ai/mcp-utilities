@@ -65,8 +65,16 @@ let gmailAuthUri = process.env.GMAIL_AUTH_URI || 'https://accounts.google.com/o/
 let gmailTokenUri = process.env.GMAIL_TOKEN_URI || 'https://oauth2.googleapis.com/token';
 let gmailRedirectUris = process.env.GMAIL_REDIRECT_URIS || null;
 let gmailScopes = process.env.GMAIL_SCOPES || 'https://www.googleapis.com/auth/gmail.send';
+let gmailAccessToken = process.env.GMAIL_ACCESS_TOKEN || null;
+let gmailRefreshToken = process.env.GMAIL_REFRESH_TOKEN || null;
+let gmailTokenType = process.env.GMAIL_TOKEN_TYPE || null;
+let gmailExpiryDate = process.env.GMAIL_EXPIRY_DATE || null;
 let whatsappToken = process.env.WHATSAPP_TOKEN || null;
 let whatsappUrl = process.env.WHATSAPP_URL || null;
+let typesenseHost = process.env.TYPESENSE_HOST || null;
+let typesensePort = process.env.TYPESENSE_PORT || null;
+let typesenseProtocol = process.env.TYPESENSE_PROTOCOL || null;
+let typesenseApiKey = process.env.TYPESENSE_API_KEY || null;
 
 // Detect if we're running under an MCP context
 const isMcpContext = 
@@ -129,6 +137,26 @@ for (let i = 0; i < args.length; i++) {
       gmailScopes = args[++i];
       writeDebug(`Gmail scopes set via argument`);
     }
+  } else if (arg === '--gmail-access-token') {
+    if (i + 1 < args.length) {
+      gmailAccessToken = args[++i];
+      writeDebug(`Gmail access token set via argument`);
+    }
+  } else if (arg === '--gmail-refresh-token') {
+    if (i + 1 < args.length) {
+      gmailRefreshToken = args[++i];
+      writeDebug(`Gmail refresh token set via argument`);
+    }
+  } else if (arg === '--gmail-token-type') {
+    if (i + 1 < args.length) {
+      gmailTokenType = args[++i];
+      writeDebug(`Gmail token type set via argument`);
+    }
+  } else if (arg === '--gmail-expiry-date') {
+    if (i + 1 < args.length) {
+      gmailExpiryDate = args[++i];
+      writeDebug(`Gmail expiry date set via argument`);
+    }
   } else if (arg === '--whatsapp-token') {
     if (i + 1 < args.length) {
       whatsappToken = args[++i];
@@ -138,6 +166,26 @@ for (let i = 0; i < args.length; i++) {
     if (i + 1 < args.length) {
       whatsappUrl = args[++i];
       writeDebug(`WhatsApp URL set via argument`);
+    }
+  } else if (arg === '--typesense-host') {
+    if (i + 1 < args.length) {
+      typesenseHost = args[++i];
+      writeDebug(`Typesense host set via argument`);
+    }
+  } else if (arg === '--typesense-port') {
+    if (i + 1 < args.length) {
+      typesensePort = args[++i];
+      writeDebug(`Typesense port set via argument`);
+    }
+  } else if (arg === '--typesense-protocol') {
+    if (i + 1 < args.length) {
+      typesenseProtocol = args[++i];
+      writeDebug(`Typesense protocol set via argument`);
+    }
+  } else if (arg === '--typesense-api-key') {
+    if (i + 1 < args.length) {
+      typesenseApiKey = args[++i];
+      writeDebug(`Typesense API key set via argument`);
     }
   } else if (arg === '--help' || arg === '-h') {
     console.log(`
@@ -156,8 +204,16 @@ Options:
   --gmail-token-uri URI     Set Gmail token URI (default: https://oauth2.googleapis.com/token)
   --gmail-redirect-uris URIS Set Gmail redirect URIs (comma-separated)
   --gmail-scopes SCOPES     Set Gmail scopes (default: https://www.googleapis.com/auth/gmail.send)
+  --gmail-access-token TOKEN Set Gmail access token
+  --gmail-refresh-token TOKEN Set Gmail refresh token
+  --gmail-token-type TYPE   Set Gmail token type
+  --gmail-expiry-date DATE  Set Gmail expiry date
   --whatsapp-token TOKEN    Set WhatsApp API token
   --whatsapp-url URL        Set WhatsApp API URL
+  --typesense-host HOST     Set Typesense host
+  --typesense-port PORT     Set Typesense port
+  --typesense-protocol PROTOCOL Set Typesense protocol
+  --typesense-api-key KEY   Set Typesense API key
   --debug                   Enable debug output
   --non-interactive, -n     Run in non-interactive mode (no prompt)
   --help, -h               Show this help message
@@ -171,8 +227,16 @@ Environment Variables:
   GMAIL_TOKEN_URI          Gmail OAuth token URI
   GMAIL_REDIRECT_URIS      Gmail OAuth redirect URIs
   GMAIL_SCOPES             Gmail OAuth scopes
+  GMAIL_ACCESS_TOKEN       Gmail access token
+  GMAIL_REFRESH_TOKEN      Gmail refresh token
+  GMAIL_TOKEN_TYPE         Gmail token type
+  GMAIL_EXPIRY_DATE        Gmail expiry date
   WHATSAPP_TOKEN           WhatsApp API token
   WHATSAPP_URL             WhatsApp API URL
+  TYPESENSE_HOST           Typesense host
+  TYPESENSE_PORT           Typesense port
+  TYPESENSE_PROTOCOL       Typesense protocol
+  TYPESENSE_API_KEY        Typesense API key
 
 Examples:
   npx mcp-utilities                    # Start with default settings
@@ -225,8 +289,16 @@ function startServerWithPath(serverPath) {
   if (gmailTokenUri) serverArgs.push('--gmail-token-uri', gmailTokenUri);
   if (gmailRedirectUris) serverArgs.push('--gmail-redirect-uris', gmailRedirectUris);
   if (gmailScopes) serverArgs.push('--gmail-scopes', gmailScopes);
+  if (gmailAccessToken) serverArgs.push('--gmail-access-token', gmailAccessToken);
+  if (gmailRefreshToken) serverArgs.push('--gmail-refresh-token', gmailRefreshToken);
+  if (gmailTokenType) serverArgs.push('--gmail-token-type', gmailTokenType);
+  if (gmailExpiryDate) serverArgs.push('--gmail-expiry-date', gmailExpiryDate);
   if (whatsappToken) serverArgs.push('--whatsapp-token', whatsappToken);
   if (whatsappUrl) serverArgs.push('--whatsapp-url', whatsappUrl);
+  if (typesenseHost) serverArgs.push('--typesense-host', typesenseHost);
+  if (typesensePort) serverArgs.push('--typesense-port', typesensePort);
+  if (typesenseProtocol) serverArgs.push('--typesense-protocol', typesenseProtocol);
+  if (typesenseApiKey) serverArgs.push('--typesense-api-key', typesenseApiKey);
   
   writeDebug(`Server arguments: ${serverArgs.join(' ')}`);
   
@@ -244,8 +316,16 @@ function startServerWithPath(serverPath) {
       GMAIL_TOKEN_URI: gmailTokenUri,
       GMAIL_REDIRECT_URIS: gmailRedirectUris,
       GMAIL_SCOPES: gmailScopes,
+      GMAIL_ACCESS_TOKEN: gmailAccessToken,
+      GMAIL_REFRESH_TOKEN: gmailRefreshToken,
+      GMAIL_TOKEN_TYPE: gmailTokenType,
+      GMAIL_EXPIRY_DATE: gmailExpiryDate,
       WHATSAPP_TOKEN: whatsappToken,
-      WHATSAPP_URL: whatsappUrl
+      WHATSAPP_URL: whatsappUrl,
+      TYPESENSE_HOST: typesenseHost,
+      TYPESENSE_PORT: typesensePort,
+      TYPESENSE_PROTOCOL: typesenseProtocol,
+      TYPESENSE_API_KEY: typesenseApiKey
     }
   });
   

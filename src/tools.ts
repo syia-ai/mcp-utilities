@@ -173,22 +173,24 @@ async function sendGmail(emailData: EmailRequest): Promise<{ status: string; out
       config.oauth.redirectUris ? config.oauth.redirectUris.split(',')[0] : 'http://localhost:3000/oauth2callback'
     );
 
-    // Load token if it exists - using path relative to this file
-    const tokenPath = path.resolve(__dirname, '..', 'mcp_gmail_token.pkl');
-    try {
-      const tokenData = await fs.readFile(tokenPath, 'utf8');
-      const tokens = JSON.parse(tokenData);
-      oauth2Client.setCredentials(tokens);
-    } catch (error) {
-      console.error(`Failed to read token from ${tokenPath}:`, error);
-      throw new Error('Gmail token not found. Please run OAuth flow first.');
+    // Set credentials from config
+    if (config.oauth.accessToken && config.oauth.refreshToken) {
+      oauth2Client.setCredentials({
+        access_token: config.oauth.accessToken,
+        refresh_token: config.oauth.refreshToken,
+        token_type: config.oauth.tokenType,
+        expiry_date: config.oauth.expiryDate,
+      });
+    } else {
+      throw new Error('Gmail token not found in config. Please run OAuth flow first.');
     }
 
     // Check if token needs refresh
     if (oauth2Client.credentials.expiry_date && oauth2Client.credentials.expiry_date < Date.now()) {
       const { credentials } = await oauth2Client.refreshAccessToken();
       oauth2Client.setCredentials(credentials);
-      await fs.writeFile(tokenPath, JSON.stringify(credentials));
+      // Note: We are not saving the refreshed token back to a file anymore.
+      // The updated credentials will only be used for the current session.
     }
 
     const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
@@ -294,191 +296,193 @@ async function mailCommunication(args: EmailRequest): Promise<CallToolResult> {
   }
 }
 
-async function _convertTxtToPdf(txtPath: string): Promise<string> {
-  const pdfPath = txtPath.replace(/\.txt$/, '.pdf');
-  const doc = new PDFDocument();
-  
-  return new Promise<string>((resolve, reject) => {
-    const stream = createWriteStream(pdfPath);
-    doc.pipe(stream);
-    
-    fs.readFile(txtPath, 'utf-8')
-      .then(fileContent => {
-        doc.text(fileContent);
-        doc.end();
-      })
-      .catch(reject);
-
-    stream.on('finish', () => {
-      console.log(`Converted ${txtPath} to ${pdfPath}`);
-      resolve(pdfPath);
-    });
-    stream.on('error', reject);
-  });
-}
-
-async function _uploadMedia(filePath: string, mimeType: string): Promise<string> {
-  if (!config.whatsapp.url) {
-    throw new Error('WhatsApp URL not configured');
-  }
-  const mediaUrl = config.whatsapp.url;
-
-  const form = new FormData();
-  form.append('file', createReadStream(filePath), {
-    filename: path.basename(filePath),
-    contentType: mimeType,
-  });
-  form.append('messaging_product', 'whatsapp');
-
-  const response = await axios.post(mediaUrl, form, {
-    headers: {
-      'Authorization': `Bearer ${config.whatsapp.token}`,
-      ...form.getHeaders(),
-    },
-  });
-
-  if (response.status !== 200) {
-    console.error(`Media upload failed: ${response.status} - ${JSON.stringify(response.data)}`);
-    throw new Error(`Media upload failed: ${response.status} - ${JSON.stringify(response.data)}`);
-  }
-
-  const mediaId = response.data.id;
-  console.log(`Media uploaded successfully. ID: ${mediaId}`);
-  return mediaId;
-}
-
-function sanitizeWhatsAppText(text: string): string {
-  // Strip HTML tags
-  let clean = text.replace(/<[^>]+>/g, '');
-  // Replace multiple spaces with one
-  clean = clean.replace(/\s{2,}/g, ' ');
-  // Replace newlines/tabs with space
-  clean = clean.replace(/[\n\t]/g, ' ');
-  return clean.trim();
-}
-
-async function sendWhatsApp(data: WhatsAppRequest): Promise<{ status: string; output: string }> {
-  try {
-    if (!config.whatsapp.token || !config.whatsapp.url) {
-      throw new Error('WhatsApp credentials not configured');
-    }
-
-    const headers = {
-      'Authorization': `Bearer ${config.whatsapp.token}`,
-      'Content-Type': 'application/json'
-    };
-    
-    let template: string;
-    const components: any[] = [];
-    
-    if (data.attachment_path) {
-      let attachmentPath = data.attachment_path;
-      if (attachmentPath.endsWith('.txt')) {
-        attachmentPath = await _convertTxtToPdf(attachmentPath);
-      }
-
-      const mimeType = mime.lookup(attachmentPath) || 'application/octet-stream';
-      const mediaId = await _uploadMedia(attachmentPath, mimeType);
-
-      let mediaType: string;
-      if (mimeType.startsWith('image/')) {
-        template = 'send_image_file';
-        mediaType = 'image';
-      } else {
-        template = 'send_document_file';
-        mediaType = 'document';
-      }
-      
-      components.push({
-        type: 'header',
-        parameters: [{ type: mediaType, [mediaType]: { id: mediaId } }],
-      });
-
-      if (data.content) {
-        components.push({
-          type: 'body',
-          parameters: [{ type: 'text', text: data.content }],
-        });
-      }
-    } else {
-      template = 'send_plain_text';
-      components.push(
-        {
-          type: 'header',
-          parameters: [{ type: 'text', text: 'Automated response' }]
-        },
-        {
-          type: 'body',
-          parameters: [{ type: 'text', text: data.content }]
-        }
-      );
-    }
-
-    const body = {
-      messaging_product: 'whatsapp',
-      recipient_type: 'individual',
-      to: data.recipient,
-      type: 'template',
-      template: {
-        name: template,
-        language: {
-          code: 'en'
-        },
-        components
-      }
-    };
-
-    const response = await axios.post(config.whatsapp.url, body, { headers });
-
-    if (response.status === 200) {
-      return {
-        status: 'success',
-        output: `Template '${template}' sent to ${data.recipient}`
-      };
-    } else {
-      return {
-        status: 'failure',
-        output: `Error ${response.status}: ${JSON.stringify(response.data)}`
-      };
-    }
-  } catch (error: any) {
-    const errorMessage = error.response ? JSON.stringify(error.response.data) : String(error);
-    console.error('Error sending WhatsApp message:', errorMessage);
-    return {
-      status: 'failure',
-      output: `Exception: ${errorMessage}`
-    };
-  }
-} 
-
-
 async function whatsappCommunication(args: WhatsAppRequest): Promise<CallToolResult> {
-  try {
-    const sanitizedContent = sanitizeWhatsAppText(args.content);
-    const result = await sendWhatsApp({
-      content: sanitizedContent,
-      recipient: args.recipient,
-      attachment_path: args.attachment_path
-    });
+    
+    const _convertTxtToPdf = async (txtPath: string): Promise<string> => {
+        const pdfPath = txtPath.replace(/\.txt$/, '.pdf');
+        const doc = new PDFDocument();
+        
+        return new Promise<string>((resolve, reject) => {
+            const stream = createWriteStream(pdfPath);
+            doc.pipe(stream);
+            
+            fs.readFile(txtPath, 'utf-8')
+              .then(fileContent => {
+                doc.text(fileContent);
+                doc.end();
+              })
+              .catch(reject);
 
-    const message = result.status === 'success' 
-      ? `WhatsApp message sent successfully: ${result.output}`
-      : `WhatsApp message failed: ${result.output}`;
-
-    return {
-      content: [
-        {
-          type: 'text' as const,
-          text: message
-        }
-      ]
+            stream.on('finish', () => {
+              console.log(`Converted ${txtPath} to ${pdfPath}`);
+              resolve(pdfPath);
+            });
+            stream.on('error', reject);
+        });
     };
-  } catch (error) {
-    console.error('Failure to communicate through WhatsApp:', error);
-    throw error;
-  }
-}
 
+    const _uploadMedia = async (filePath: string, mimeType: string): Promise<string> => {
+        if (!config.whatsapp.url || !config.whatsapp.token) {
+            throw new Error('WhatsApp URL or token not configured');
+        }
+        const mediaUrl = `${config.whatsapp.url}/media`;
+
+        const form = new FormData();
+        form.append('file', createReadStream(filePath), {
+            filename: path.basename(filePath),
+            contentType: mimeType,
+        });
+        form.append('messaging_product', 'whatsapp');
+        form.append('type', mimeType);
+
+        const response = await axios.post(mediaUrl, form, {
+            headers: {
+                'Authorization': `Bearer ${config.whatsapp.token}`,
+                ...form.getHeaders(),
+            },
+        });
+
+        if (response.status !== 200) {
+            console.error(`Media upload failed: ${response.status} - ${JSON.stringify(response.data)}`);
+            throw new Error(`Media upload failed: ${response.status} - ${JSON.stringify(response.data)}`);
+        }
+
+        const mediaId = response.data.id;
+        console.log(`Media uploaded successfully. ID: ${mediaId}`);
+        return mediaId;
+    };
+
+    const _sendTemplateMessage = async (
+        recipient: string,
+        templateName: string,
+        params: string[],
+        mediaId?: string,
+        mediaType?: string,
+        language: string = "en",
+    ): Promise<{ status: string; output: string }> => {
+        if (!config.whatsapp.url || !config.whatsapp.token) {
+            throw new Error('WhatsApp URL or token not configured');
+        }
+        const url = `${config.whatsapp.url}/messages`;
+        const headers = {
+            "Authorization": `Bearer ${config.whatsapp.token}`,
+            "Content-Type": "application/json",
+        };
+
+        const components: any[] = [];
+        if (templateName === "send_plain_text") {
+            if (params.length !== 2) {
+                throw new Error("send_plain_text template requires exactly two parameters: header and body.");
+            }
+            components.push({ type: "header", parameters: [{ type: "text", text: params[0] }] });
+            components.push({ type: "body", parameters: [{ type: "text", text: params[1] }] });
+        } else {
+            if (mediaId && mediaType) {
+                components.push({
+                    type: "header",
+                    parameters: [{ type: mediaType, [mediaType]: { id: mediaId } }],
+                });
+            }
+            if (params && params.length > 0) {
+                components.push({
+                    type: "body",
+                    parameters: params.map(p => ({ type: "text", text: p })),
+                });
+            }
+        }
+
+        const payload = {
+            messaging_product: "whatsapp",
+            to: recipient,
+            type: "template",
+            template: {
+                name: templateName,
+                language: { code: language },
+                components: components,
+            },
+        };
+
+        try {
+            const response = await axios.post(url, payload, { headers });
+            console.log(`Template send response: ${response.status} - ${JSON.stringify(response.data)}`);
+
+            if (response.status === 200) {
+                return { status: "success", output: `Template '${templateName}' sent to ${recipient}.` };
+            } else {
+                return { status: "failure", output: `Error ${response.status}: ${JSON.stringify(response.data)}` };
+            }
+        } catch (error: any) {
+             const errorMessage = error.response ? JSON.stringify(error.response.data) : String(error);
+             console.error(`Error sending template message:`, errorMessage);
+             return {
+                status: 'failure',
+                output: `Exception: ${errorMessage}`
+            };
+        }
+    };
+
+    try {
+        const recipient = args.recipient;
+        const message = args.content;
+        let attachmentPath = args.attachment_path;
+
+        let template = "send_plain_text";
+        let mediaId: string | undefined = undefined;
+        let mediaType: string | undefined = undefined;
+        let templateParams: string[] = [];
+
+        if (attachmentPath) {
+            if (attachmentPath.endsWith(".txt")) {
+                attachmentPath = await _convertTxtToPdf(attachmentPath);
+            }
+
+            const mimeType = mime.lookup(attachmentPath) || "application/octet-stream";
+            
+            mediaId = await _uploadMedia(attachmentPath, mimeType);
+
+            if (mimeType.startsWith("image/")) {
+                template = "send_image_file";
+                mediaType = "image";
+            } else {
+                template = "send_document_file";
+                mediaType = "document";
+            }
+            
+            if (message) {
+              templateParams = [message];
+            }
+        } else {
+            templateParams = ["Automated response", message];
+        }
+
+        const result = await _sendTemplateMessage(
+            recipient,
+            template,
+            templateParams,
+            mediaId,
+            mediaType,
+        );
+
+        const status = result.status === "success" ? "sent successfully" : "failed";
+        const text = `WhatsApp message ${status}: ${result.output}`;
+        
+        return {
+            content: [{
+                type: 'text' as const,
+                text: text,
+            }]
+        };
+
+    } catch (e: any) {
+        console.error(`Error sending WhatsApp message: ${e}`);
+        return {
+            content: [{
+                type: 'text' as const,
+                text: `Failed to send WhatsApp message: ${String(e)}`
+            }]
+        };
+    }
+}
 
 async function fleetVesselLookup(args: FleetVesselLookupRequest): Promise<CallToolResult> {
   const { name_query, vessel_query, email_query } = args;
