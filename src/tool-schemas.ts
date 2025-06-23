@@ -121,7 +121,68 @@ export const communicationTools: Tool[] = [
         }
       }
     }
+  },
+  {
+    name: "google_search",
+    description: "Perform a Google search using a natural language query. Returns relevant web results.",
+    inputSchema: {
+        type: "object",
+        required: ["query"],
+        properties: {
+            query: {
+                type: "string",
+                description: "The search query to be executed."
+            }
+        },
+        additionalProperties: false
+    }
+  },
+  {
+      name: "parse_document_link",
+      description: "Use this tool to parse a document link or a local file. The tool will parse the document and return the text content.",
+      inputSchema: {
+          type: "object",
+          required: ["document_link"],
+          properties: {
+              document_link: {
+                  type: "string",
+                  description: "The link to the document that needs to be parsed"
+              }
+          },
+          additionalProperties: false
+      }
+  },
+  {
+    name: "get_user_associated_vessels",
+    description: "Retrieves a list of vessels associated with a specific user (by email).",
+    inputSchema: {
+        type: "object",
+        properties: {
+            emailId: {
+                type: "string",
+                description: "The email address of the user to find associated vessels for."
+            }
+        },
+        required: ["emailId"],
+        additionalProperties: false
+    }
+  },
+  {
+    name: "get_user_task_list",
+    description: "Retrieves a list of pending and completed tasks associated with a specific user (by email).",
+    inputSchema: {
+        type: "object",
+        properties: {
+            emailId: {
+                type: "string",
+                description: "The email address of the user to find associated tasks for."
+            }
+        },
+        required: ["emailId"],
+        additionalProperties: false
+    }
   }
+  
 ];
 
 export const toolDefinitions = communicationTools; 
