@@ -170,7 +170,7 @@ async function sendGmail(emailData: EmailRequest): Promise<{ status: string; out
     const oauth2Client = new OAuth2Client(
       config.oauth.clientId,
       config.oauth.clientSecret,
-      config.oauth.redirectUris ? config.oauth.redirectUris.split(',')[0] : 'http://localhost:3000/oauth2callback'
+      config.oauth.redirectUris ? config.oauth.redirectUris.split(',')[0] : ''
     );
 
     // Set credentials from config
@@ -370,9 +370,9 @@ async function whatsappCommunication(args: WhatsAppRequest): Promise<CallToolRes
         };
 
         const components: any[] = [];
-        if (templateName === "send_plain_text") {
+        if (templateName === "send_plain_text_") {
             if (params.length !== 2) {
-                throw new Error("send_plain_text template requires exactly two parameters: header and body.");
+                throw new Error("send_plain_text_ template requires exactly two parameters: header and body.");
             }
             components.push({ type: "header", parameters: [{ type: "text", text: params[0] }] });
             components.push({ type: "body", parameters: [{ type: "text", text: params[1] }] });
@@ -426,7 +426,7 @@ async function whatsappCommunication(args: WhatsAppRequest): Promise<CallToolRes
         const message = args.content;
         let attachmentPath = args.attachment_path;
 
-        let template = "send_plain_text";
+        let template = "send_plain_text_";
         let mediaId: string | undefined = undefined;
         let mediaType: string | undefined = undefined;
         let templateParams: string[] = [];
@@ -441,10 +441,10 @@ async function whatsappCommunication(args: WhatsAppRequest): Promise<CallToolRes
             mediaId = await _uploadMedia(attachmentPath, mimeType);
 
             if (mimeType.startsWith("image/")) {
-                template = "send_image_file";
+                template = "send_image_file_";
                 mediaType = "image";
             } else {
-                template = "send_document_file";
+                template = "send_document_file_";
                 mediaType = "document";
             }
             

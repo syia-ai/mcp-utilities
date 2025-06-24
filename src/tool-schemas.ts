@@ -25,7 +25,7 @@ export const communicationTools: Tool[] = [
           description: [
             'The main content of the email, written in HTML.',
             'This allows formatting like bold text, lists, and links.',
-            'End the message with the signature: \'Best regards,<br>Syia\'.'
+            'End the message with the signature: \'Best regards,<br>SIYA\'.'
           ].join(' ')
         },
         recipient: {
@@ -35,7 +35,7 @@ export const communicationTools: Tool[] = [
             'Must contain at least one valid email address.'
           ].join(' '),
           items: { type: 'string', format: 'email' },
-          examples: [['example@syia.com']]
+          examples: [['example@siya.com']]
         },
         cc: {
           type: 'array',
@@ -69,9 +69,11 @@ export const communicationTools: Tool[] = [
         content: {
           type: 'string',
           description: [
-            'The body of the message to send. It must be plain text.',
-            'Do not include greetings or closings (e.g., \'Hello\', \'Thank you\'),',
-            'as they are automatically added by the template.'
+            'The main text of the message to be sent. It must be plain text.',
+            'Avoid including greetings or sign-offs (e.g., \'Hello\', \'Thank you\') — these are added automatically by the template.',
+            'If an attachment is included, template already contains "Hello, PFA the image/document."',
+            'If no attachment is present, template already contains "Hello, here is the information you’ve asked for."',
+            'Write the message so that, when combined with the template, it is clear and non-repetitive.'
           ].join(' ')
         },
         recipient: {
