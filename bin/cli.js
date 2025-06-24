@@ -57,14 +57,14 @@ try {
 const args = process.argv.slice(2);
 let debug = false;
 let nonInteractive = false;
-let mongodbUri = process.env.MONGODB_URI || 'mongodb://localhost:27017';
-let mongodbDbName = process.env.MONGODB_DB_NAME || 'mcp_communication';
+let mongodbUri = process.env.MONGODB_URI || null;
+let mongodbDbName = process.env.MONGODB_DB_NAME || null;
 let oauthClientId = process.env.OAUTH_CLIENT_ID || null;
 let oauthClientSecret = process.env.OAUTH_CLIENT_SECRET || null;
-let gmailAuthUri = process.env.GMAIL_AUTH_URI || 'https://accounts.google.com/o/oauth2/auth';
-let gmailTokenUri = process.env.GMAIL_TOKEN_URI || 'https://oauth2.googleapis.com/token';
+let gmailAuthUri = process.env.GMAIL_AUTH_URI || null;
+let gmailTokenUri = process.env.GMAIL_TOKEN_URI || null;
 let gmailRedirectUris = process.env.GMAIL_REDIRECT_URIS || null;
-let gmailScopes = process.env.GMAIL_SCOPES || 'https://www.googleapis.com/auth/gmail.send';
+let gmailScopes = process.env.GMAIL_SCOPES || null;
 let gmailAccessToken = process.env.GMAIL_ACCESS_TOKEN || null;
 let gmailRefreshToken = process.env.GMAIL_REFRESH_TOKEN || null;
 let gmailTokenType = process.env.GMAIL_TOKEN_TYPE || null;
@@ -75,6 +75,11 @@ let typesenseHost = process.env.TYPESENSE_HOST || null;
 let typesensePort = process.env.TYPESENSE_PORT || null;
 let typesenseProtocol = process.env.TYPESENSE_PROTOCOL || null;
 let typesenseApiKey = process.env.TYPESENSE_API_KEY || null;
+let cohereApiKey = process.env.COHERE_API_KEY || null;
+let openaiApiKey = process.env.OPENAI_API_KEY || null;
+let perplexityApiKey = process.env.PERPLEXITY_API_KEY || null;
+let llamaIndexApiKey = process.env.LLAMA_INDEX_API_KEY || null;
+let llamaIndexVendorModel = process.env.LLAMA_INDEX_VENDOR_MODEL || null;
 
 // Detect if we're running under an MCP context
 const isMcpContext = 
@@ -187,6 +192,31 @@ for (let i = 0; i < args.length; i++) {
       typesenseApiKey = args[++i];
       writeDebug(`Typesense API key set via argument`);
     }
+  } else if (arg === '--cohere-api-key') {
+    if (i + 1 < args.length) {
+      cohereApiKey = args[++i];
+      writeDebug(`Cohere API key set via argument`);
+    }
+  } else if (arg === '--openai-api-key') {  
+    if (i + 1 < args.length) {
+      openaiApiKey = args[++i];
+      writeDebug(`OpenAI API key set via argument`);
+    }
+  } else if (arg === '--perplexity-api-key') {    
+    if (i + 1 < args.length) {
+      perplexityApiKey = args[++i];
+      writeDebug(`Perplexity API key set via argument`);
+    }
+  } else if (arg === '--llama-index-api-key') { 
+    if (i + 1 < args.length) {
+      llamaIndexApiKey = args[++i];
+      writeDebug(`Llama Index API key set via argument`);
+    }
+  } else if (arg === '--llama-index-vendor-model') {  
+    if (i + 1 < args.length) {
+      llamaIndexVendorModel = args[++i];
+      writeDebug(`Llama Index vendor model set via argument`);
+    } 
   } else if (arg === '--help' || arg === '-h') {
     console.log(`
 Communication MCP Server - Email and WhatsApp Communication
@@ -281,8 +311,8 @@ function startServerWithPath(serverPath) {
   
   if (debug) serverArgs.push('--debug');
   if (nonInteractive) serverArgs.push('--non-interactive');
-  if (mongodbUri) serverArgs.push('--mongodb-uri', mongodbUri);
-  if (mongodbDbName) serverArgs.push('--mongodb-db-name', mongodbDbName);
+  if (mongodbUri) serverArgs.push('--mongo-uri', mongodbUri);
+  if (mongodbDbName) serverArgs.push('--db-name', mongodbDbName);
   if (oauthClientId) serverArgs.push('--oauth-client-id', oauthClientId);
   if (oauthClientSecret) serverArgs.push('--oauth-client-secret', oauthClientSecret);
   if (gmailAuthUri) serverArgs.push('--gmail-auth-uri', gmailAuthUri);
@@ -299,6 +329,11 @@ function startServerWithPath(serverPath) {
   if (typesensePort) serverArgs.push('--typesense-port', typesensePort);
   if (typesenseProtocol) serverArgs.push('--typesense-protocol', typesenseProtocol);
   if (typesenseApiKey) serverArgs.push('--typesense-api-key', typesenseApiKey);
+  if (cohereApiKey) serverArgs.push('--cohere-api-key', cohereApiKey);
+  if (openaiApiKey) serverArgs.push('--openai-api-key', openaiApiKey);
+  if (perplexityApiKey) serverArgs.push('--perplexity-api-key', perplexityApiKey);
+  if (llamaIndexApiKey) serverArgs.push('--llama-index-api-key', llamaIndexApiKey);
+  if (llamaIndexVendorModel) serverArgs.push('--llama-index-vendor-model', llamaIndexVendorModel);
   
   writeDebug(`Server arguments: ${serverArgs.join(' ')}`);
   
@@ -325,7 +360,12 @@ function startServerWithPath(serverPath) {
       TYPESENSE_HOST: typesenseHost,
       TYPESENSE_PORT: typesensePort,
       TYPESENSE_PROTOCOL: typesenseProtocol,
-      TYPESENSE_API_KEY: typesenseApiKey
+      TYPESENSE_API_KEY: typesenseApiKey,
+      COHERE_API_KEY: cohereApiKey,
+      OPENAI_API_KEY: openaiApiKey,
+      PERPLEXITY_API_KEY: perplexityApiKey,
+      LLAMA_INDEX_API_KEY: llamaIndexApiKey,
+      LLAMA_INDEX_VENDOR_MODEL: llamaIndexVendorModel
     }
   });
   
