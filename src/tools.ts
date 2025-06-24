@@ -13,7 +13,6 @@ import PDFDocument from 'pdfkit';
 import { config } from './config.js';
 import { toolDefinitions } from './tool-schemas.js';
 import Typesense from 'typesense';
-import { Collection } from 'mongodb';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -54,12 +53,6 @@ interface GetUserAssociatedVesselsRequest {
 
 interface GetUserTaskListRequest {
   emailId: string;
-}
-
-interface GetUserTaskListResponse {
-  currentTaskInfo: any[];
-  historicalTaskInfo: any[];
-  urls: string[];
 }
 
 interface ArtifactData {
@@ -946,13 +939,15 @@ async function getUserTaskList(args: GetUserTaskListRequest): Promise<CallToolRe
       const casefileTaskRemainderCollection = db.collection("casefile_task_reminder");
 
       // Single query to fetch the document by email
-      const userTaskDocument = await casefileTaskRemainderCollection.findOne({ email: mailId });
+      const query = { email: mailId };
+      const projection = { _id: 0, name: 1, email: 1, task_list: 1};
+      const userTaskDocument = await casefileTaskRemainderCollection.findOne(query, { projection });
 
       if (!userTaskDocument) {
           return {
               content: [{
                   type: "text",
-                  text: JSON.stringify({ currentTaskInfo: [], historicalTaskInfo: [], urls: [] }, null, 2),
+                  text: JSON.stringify({ todaysTask: [], pendingTasks: [], urls: [] }, null, 2),
                   title: `No task data found for mailId ${mailId}`
               }]
           };
@@ -965,16 +960,16 @@ async function getUserTaskList(args: GetUserTaskListRequest): Promise<CallToolRe
       const userEmail = userTaskDocument.email;
 
 
-      // Get today's and yesterday's dates
+      // Get today's date and last 7 days range
       const today = new Date();
       const todayDate = today.toISOString().split('T')[0];
       
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayDate = yesterday.toISOString().split('T')[0];
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const sevenDaysAgoDate = sevenDaysAgo.toISOString().split('T')[0];
 
-      // Filter current tasks for today's date and return only required fields
-      const currentTaskInfoFiltered = userTaskDocument.task_list?.filter((task: any) => {
+      // Filter today's tasks and return only required fields
+      const todaysTaskFiltered = userTaskDocument.task_list?.filter((task: any) => {
           if (!task.taskDate) return false;
           try {
               // Parse the ISO datetime string and extract date part
@@ -988,17 +983,18 @@ async function getUserTaskList(args: GetUserTaskListRequest): Promise<CallToolRe
       }).map((task: any) => ({
           task: task.task,
           taskDate: task.taskDate,
-          casefile_url: task.casefile_url
+          casefile_url: task.casefile_url,
+          vesselName: task.vesselName
       })) || [];
 
-      // Filter historical tasks for yesterday's date and return only required fields
-      const historicalTaskInfoFiltered = userTaskDocument.historicalTask?.filter((task: any) => {
+      // Filter pending tasks for last 7 days (excluding today) and return only required fields
+      const pendingTasksFiltered = userTaskDocument.task_list?.filter((task: any) => {
           if (!task.taskDate) return false;
           try {
               // Parse the ISO datetime string and extract date part
               const taskDate = new Date(task.taskDate);
               const taskDateOnly = taskDate.toISOString().split('T')[0];
-              return taskDateOnly === yesterdayDate;
+              return taskDateOnly >= sevenDaysAgoDate && taskDateOnly < todayDate;
           } catch (error) {
               console.warn('Invalid taskDate format:', task.taskDate);
               return false;
@@ -1006,21 +1002,22 @@ async function getUserTaskList(args: GetUserTaskListRequest): Promise<CallToolRe
       }).map((task: any) => ({
           task: task.task,
           taskDate: task.taskDate,
-          casefile_url: task.casefile_url
+          casefile_url: task.casefile_url,
+          vesselName: task.vesselName
       })) || [];
 
-      // Collect URLs from both current and historical tasks
+      // Collect URLs from both today's and pending tasks
       const urls: string[] = [];
       
-      // Collect URLs from current tasks
-      currentTaskInfoFiltered.forEach((task: any) => {
+      // Collect URLs from today's tasks
+      todaysTaskFiltered.forEach((task: any) => {
           if (task.casefile_url) {
               urls.push(task.casefile_url);
           }
       });
 
-      // Collect URLs from historical tasks
-      historicalTaskInfoFiltered.forEach((task: any) => {
+      // Collect URLs from pending tasks
+      pendingTasksFiltered.forEach((task: any) => {
           if (task.casefile_url) {
               urls.push(task.casefile_url);
           }
@@ -1030,22 +1027,21 @@ async function getUserTaskList(args: GetUserTaskListRequest): Promise<CallToolRe
       const to_return = {
         name: userName,
         email: userEmail,
-        currentTaskInfo: currentTaskInfoFiltered,
-        historicalTaskInfo: historicalTaskInfoFiltered,
-        urls: urls
+        todaysTask: todaysTaskFiltered,
+        pendingTasks: pendingTasksFiltered
       };
 
       // Combine all tasks with URLs for artifact generation
       const allTasksWithUrls: TaskResult[] = [
-        ...currentTaskInfoFiltered.map((task: any) => ({
+        ...todaysTaskFiltered.map((task: any) => ({
           url: task.casefile_url,
-          title: task.task || 'Current Task',
+          title: task.task || 'Today\'s Task',
           task: task.task,
           taskDate: task.taskDate
         })),
-        ...historicalTaskInfoFiltered.map((task: any) => ({
+        ...pendingTasksFiltered.map((task: any) => ({
           url: task.casefile_url,
-          title: task.task || 'Historical Task',
+          title: task.task || 'Pending Task',
           task: task.task,
           taskDate: task.taskDate
         }))
@@ -1070,4 +1066,3 @@ async function getUserTaskList(args: GetUserTaskListRequest): Promise<CallToolRe
       throw new Error(`Failed to fetch user task list: ${error}`);
   }
 }
-
