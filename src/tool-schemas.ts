@@ -49,7 +49,7 @@ export const communicationTools: Tool[] = [
         },
         attachment_paths: {
           type: 'array',
-          description: 'Optional list of local file paths to attachments (e.g., .txt, .pdf, .png, .jpg). If provided, the files will be attached to the email.',
+          description: 'Optional list of local file paths to attachments (supported extensions: .rtf, .md, .html, .pdf, .txt, .doc, .docx, .xls, .xlsx, .csv, .pptx, .ppt, .png, .jpg, .jpeg). If provided, the files will be attached to the email. You may use either a relative path (within the workspace) or an absolute/full path.',
           items: { type: 'string' }
         }
       },
@@ -72,7 +72,7 @@ export const communicationTools: Tool[] = [
             'The main text of the message to be sent. It must be plain text.',
             'Avoid including greetings or sign-offs (e.g., \'Hello\', \'Thank you\') — these are added automatically by the template.',
             'If an attachment is included, template already contains "Hello, PFA the image/document."',
-            'If no attachment is present, template already contains "Hello, here is the information you’ve asked for."',
+            'If no attachment is present, template already contains "Hello, here is the information youve asked for."',
             'Write the message so that, when combined with the template, it is clear and non-repetitive.'
           ].join(' ')
         },
@@ -89,9 +89,10 @@ export const communicationTools: Tool[] = [
         attachment_path: {
           type: 'string',
           description: [
-            'Optional local file path to an attachment (e.g., .txt, .pdf, .png, .jpg).',
+            'Optional local file path to an attachment (supported extensions:  .rtf, .md, .html, .pdf, .txt, .doc, .docx, .xls, .xlsx, .csv, .pptx, .ppt, .png, .jpg, .jpeg).',
             'If provided, the file will be uploaded and sent with the message.',
-            'Text files (.txt) are automatically converted to PDF format.'
+            'Text files (.txt) are automatically converted to PDF format.',
+            'You may use either a relative path (within the workspace) or an absolute/full path.'
           ].join(' ')
         }
       },
