@@ -292,23 +292,52 @@ async function mailCommunication(args: EmailRequest): Promise<CallToolResult> {
 async function whatsappCommunication(args: WhatsAppRequest): Promise<CallToolResult> {
     
     const _convertTxtToPdf = async (txtPath: string): Promise<string> => {
-        const pdfPath = txtPath.replace(/\.txt$/, '.pdf');
+        const pdfPath = txtPath.replace(/\.[^.]+$/, '.pdf');
         const doc = new PDFDocument();
-        
         return new Promise<string>((resolve, reject) => {
             const stream = createWriteStream(pdfPath);
             doc.pipe(stream);
-            
             fs.readFile(txtPath, 'utf-8')
               .then(fileContent => {
                 doc.text(fileContent);
                 doc.end();
               })
               .catch(reject);
-
             stream.on('finish', () => {
               console.log(`Converted ${txtPath} to ${pdfPath}`);
               resolve(pdfPath);
+            });
+            stream.on('error', reject);
+        });
+    };
+
+    // New: Convert .md, .csv, .html, .rtf to PDF
+    const _convertToPdf = async (filePath: string, ext: string): Promise<string> => {
+        const pdfPath = filePath.replace(/\.[^.]+$/, '.pdf');
+        const doc = new PDFDocument();
+        return new Promise<string>(async (resolve, reject) => {
+            const stream = createWriteStream(pdfPath);
+            doc.pipe(stream);
+            try {
+                let fileContent = '';
+                if (ext === '.md' || ext === '.csv' || ext === '.rtf') {
+                    fileContent = await fs.readFile(filePath, 'utf-8');
+                    doc.text(fileContent);
+                } else if (ext === '.html') {
+                    const html = await fs.readFile(filePath, 'utf-8');
+                    const stripped = html.replace(/<[^>]+>/g, '');
+                    doc.text(stripped);
+                } else {
+                    fileContent = await fs.readFile(filePath, 'utf-8');
+                    doc.text(fileContent);
+                }
+                doc.end();
+            } catch (err) {
+                reject(err);
+            }
+            stream.on('finish', () => {
+                console.log(`Converted ${filePath} to ${pdfPath}`);
+                resolve(pdfPath);
             });
             stream.on('error', reject);
         });
@@ -425,14 +454,18 @@ async function whatsappCommunication(args: WhatsAppRequest): Promise<CallToolRes
         let templateParams: string[] = [];
 
         if (attachmentPath) {
-            if (attachmentPath.endsWith(".txt")) {
+            const ext = path.extname(attachmentPath).toLowerCase();
+            // Supported formats
+            const supported = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt'];
+            if (!supported.includes(ext)) {
+                // Convert unsupported to PDF
+                attachmentPath = await _convertToPdf(attachmentPath, ext);
+            } else if (ext === '.txt') {
                 attachmentPath = await _convertTxtToPdf(attachmentPath);
             }
 
             const mimeType = mime.lookup(attachmentPath) || "application/octet-stream";
-            
             mediaId = await _uploadMedia(attachmentPath, mimeType);
-
             if (mimeType.startsWith("image/")) {
                 template = "send_image_file_";
                 mediaType = "image";
@@ -440,7 +473,6 @@ async function whatsappCommunication(args: WhatsAppRequest): Promise<CallToolRes
                 template = "send_document_file_";
                 mediaType = "document";
             }
-            
             if (message) {
               templateParams = [message];
             }
@@ -458,14 +490,12 @@ async function whatsappCommunication(args: WhatsAppRequest): Promise<CallToolRes
 
         const status = result.status === "success" ? "sent successfully" : "failed";
         const text = `WhatsApp message ${status}: ${result.output}`;
-        
         return {
             content: [{
                 type: 'text' as const,
                 text: text,
             }]
         };
-
     } catch (e: any) {
         console.error(`Error sending WhatsApp message: ${e}`);
         return {
