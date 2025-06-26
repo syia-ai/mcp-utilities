@@ -17,6 +17,8 @@ import Typesense from 'typesense';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const WORKSPACE_ROOT = process.env.WORKSPACE_ROOT || process.cwd(); // or use auto-detection as discussed earlier
+
 interface EmailRequest {
   subject: string;
   content: string;
@@ -212,7 +214,8 @@ async function sendGmail(emailData: EmailRequest): Promise<{ status: string; out
       messageParts.push(emailData.content);
 
       for (const filePath of emailData.attachment_paths) {
-        const fileContent = await fs.readFile(filePath);
+        const resolvedPath = path.isAbsolute(filePath) ? filePath : path.join(WORKSPACE_ROOT, filePath);
+        const fileContent = await fs.readFile(resolvedPath);
         const mimeType = mime.lookup(filePath) || 'application/octet-stream';
         const fileName = path.basename(filePath);
 
