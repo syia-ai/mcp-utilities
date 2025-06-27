@@ -59,6 +59,8 @@ let debug = false;
 let nonInteractive = false;
 let mongodbUri = process.env.MONGODB_URI || null;
 let mongodbDbName = process.env.MONGODB_DB_NAME || null;
+let mongodbEtlDevUri = process.env.MONGODB_ETL_DEV_URI || null;
+let mongodbEtlDevDbName = process.env.MONGODB_ETL_DEV_DB_NAME || null;
 let oauthClientId = process.env.OAUTH_CLIENT_ID || null;
 let oauthClientSecret = process.env.OAUTH_CLIENT_SECRET || null;
 let gmailAuthUri = process.env.GMAIL_AUTH_URI || null;
@@ -80,6 +82,7 @@ let openaiApiKey = process.env.OPENAI_API_KEY || null;
 let perplexityApiKey = process.env.PERPLEXITY_API_KEY || null;
 let llamaIndexApiKey = process.env.LLAMA_INDEX_API_KEY || null;
 let llamaIndexVendorModel = process.env.LLAMA_INDEX_VENDOR_MODEL || null;
+let syiaApiKey = process.env.SYIA_API_KEY || null;
 
 // Detect if we're running under an MCP context
 const isMcpContext = 
@@ -111,6 +114,16 @@ for (let i = 0; i < args.length; i++) {
     if (i + 1 < args.length) {
       mongodbDbName = args[++i];
       writeDebug(`MongoDB database name set to: ${mongodbDbName}`);
+    }
+  } else if (arg === '--mongodb-etl-dev-uri') {
+    if (i + 1 < args.length) {
+      mongodbEtlDevUri = args[++i];
+      writeDebug(`MongoDB ETL dev URI set to: ${mongodbEtlDevUri}`);
+    }
+  } else if (arg === '--mongodb-etl-dev-db-name') {
+    if (i + 1 < args.length) {
+      mongodbEtlDevDbName = args[++i];
+      writeDebug(`MongoDB ETL dev database name set to: ${mongodbEtlDevDbName}`);
     }
   } else if (arg === '--oauth-client-id') {
     if (i + 1 < args.length) {
@@ -217,6 +230,11 @@ for (let i = 0; i < args.length; i++) {
       llamaIndexVendorModel = args[++i];
       writeDebug(`Llama Index vendor model set via argument`);
     } 
+  } else if (arg === '--syia-api-key') {
+    if (i + 1 < args.length) {
+      syiaApiKey = args[++i];
+      writeDebug(`Syia API key set via argument`);
+    }
   } else if (arg === '--help' || arg === '-h') {
     console.log(`
 Communication MCP Server - Email and WhatsApp Communication
@@ -228,6 +246,8 @@ Options:
   --mongo-uri URI           Alias for --mongodb-uri
   --mongodb-db-name NAME    Set MongoDB database name (default: mcp_communication)
   --db-name NAME            Alias for --mongodb-db-name
+  --mongodb-etl-dev-uri URI Set MongoDB ETL dev URI
+  --mongodb-etl-dev-db-name NAME Set MongoDB ETL dev database name
   --oauth-client-id ID      Set OAuth client ID for Gmail
   --oauth-client-secret SECRET Set OAuth client secret for Gmail
   --gmail-auth-uri URI      Set Gmail auth URI (default: https://accounts.google.com/o/oauth2/auth)
@@ -244,6 +264,7 @@ Options:
   --typesense-port PORT     Set Typesense port
   --typesense-protocol PROTOCOL Set Typesense protocol
   --typesense-api-key KEY   Set Typesense API key
+  --syia-api-key KEY        Set Syia API key
   --debug                   Enable debug output
   --non-interactive, -n     Run in non-interactive mode (no prompt)
   --help, -h               Show this help message
@@ -251,6 +272,8 @@ Options:
 Environment Variables:
   MONGODB_URI              MongoDB connection URI
   MONGODB_DB_NAME          MongoDB database name
+  MONGODB_ETL_DEV_URI      MongoDB ETL dev URI
+  MONGODB_ETL_DEV_DB_NAME  MongoDB ETL dev database name
   OAUTH_CLIENT_ID          OAuth client ID for Gmail
   OAUTH_CLIENT_SECRET      OAuth client secret for Gmail
   GMAIL_AUTH_URI           Gmail OAuth auth URI
@@ -267,7 +290,7 @@ Environment Variables:
   TYPESENSE_PORT           Typesense port
   TYPESENSE_PROTOCOL       Typesense protocol
   TYPESENSE_API_KEY        Typesense API key
-
+  SYIA_API_KEY             Syia API key
 Examples:
   npx mcp-utilities                    # Start with default settings
   npx mcp-utilities --debug            # Start with debug logging
@@ -313,6 +336,8 @@ function startServerWithPath(serverPath) {
   if (nonInteractive) serverArgs.push('--non-interactive');
   if (mongodbUri) serverArgs.push('--mongo-uri', mongodbUri);
   if (mongodbDbName) serverArgs.push('--db-name', mongodbDbName);
+  if (mongodbEtlDevUri) serverArgs.push('--mongodb-etl-dev-uri', mongodbEtlDevUri);
+  if (mongodbEtlDevDbName) serverArgs.push('--mongodb-etl-dev-db-name', mongodbEtlDevDbName);
   if (oauthClientId) serverArgs.push('--oauth-client-id', oauthClientId);
   if (oauthClientSecret) serverArgs.push('--oauth-client-secret', oauthClientSecret);
   if (gmailAuthUri) serverArgs.push('--gmail-auth-uri', gmailAuthUri);
@@ -334,7 +359,7 @@ function startServerWithPath(serverPath) {
   if (perplexityApiKey) serverArgs.push('--perplexity-api-key', perplexityApiKey);
   if (llamaIndexApiKey) serverArgs.push('--llama-index-api-key', llamaIndexApiKey);
   if (llamaIndexVendorModel) serverArgs.push('--llama-index-vendor-model', llamaIndexVendorModel);
-  
+  if (syiaApiKey) serverArgs.push('--syia-api-key', syiaApiKey);
   writeDebug(`Server arguments: ${serverArgs.join(' ')}`);
   
   // Start the server process
@@ -345,6 +370,8 @@ function startServerWithPath(serverPath) {
       NODE_PATH: process.env.NODE_PATH || '',
       MONGODB_URI: mongodbUri,
       MONGODB_DB_NAME: mongodbDbName,
+      MONGODB_ETL_DEV_URI: mongodbEtlDevUri,
+      MONGODB_ETL_DEV_DB_NAME: mongodbEtlDevDbName,
       OAUTH_CLIENT_ID: oauthClientId,
       OAUTH_CLIENT_SECRET: oauthClientSecret,
       GMAIL_AUTH_URI: gmailAuthUri,
@@ -365,7 +392,8 @@ function startServerWithPath(serverPath) {
       OPENAI_API_KEY: openaiApiKey,
       PERPLEXITY_API_KEY: perplexityApiKey,
       LLAMA_INDEX_API_KEY: llamaIndexApiKey,
-      LLAMA_INDEX_VENDOR_MODEL: llamaIndexVendorModel
+      LLAMA_INDEX_VENDOR_MODEL: llamaIndexVendorModel,
+      SYIA_API_KEY: syiaApiKey
     }
   });
   
