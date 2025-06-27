@@ -49,7 +49,7 @@ export const communicationTools: Tool[] = [
         },
         attachment_paths: {
           type: 'array',
-          description: 'Optional list of local file paths to attachments. Only relative paths starting with "workspaces/" are allowed (e.g., workspaces/your-folder/yourfile.pdf). Supported extensions: .rtf, .md, .html, .pdf, .txt, .doc, .docx, .xls, .xlsx, .csv, .pptx, .ppt, .png, .jpg, .jpeg. If provided, the files will be attached to the email.',
+          description: 'Optional list of local file paths to attachments (supported extensions: .rtf, .md, .html, .pdf, .txt, .doc, .docx, .xls, .xlsx, .csv, .pptx, .ppt, .png, .jpg, .jpeg). If provided, the files will be attached to the email. You may use either a relative path (within the workspace) or an absolute/full path.',
           items: { type: 'string' }
         }
       },
@@ -59,7 +59,7 @@ export const communicationTools: Tool[] = [
   {
     name: 'whatsapp_communication',
     description: [
-      'Use this tool to send quick, informal text messages with or without attachments via WhatsApp.',
+      'Use this tool to send quick, informal text messages via WhatsApp.',
       'It is designed for real-time, individual communication using a phone number.',
       'Only one phone number can be messaged per tool call.'
     ].join(' '),
@@ -88,7 +88,12 @@ export const communicationTools: Tool[] = [
         },
         attachment_path: {
           type: 'string',
-          description: 'Optional local file path to an attachment. Only relative paths starting with "workspaces/" are allowed (e.g., workspaces/your-folder/yourfile.pdf). Supported extensions: .rtf, .md, .html, .pdf, .txt, .doc, .docx, .xls, .xlsx, .csv, .pptx, .ppt, .png, .jpg, .jpeg. If provided, the file will be uploaded and sent with the message.',
+          description: [
+            'Optional local file path to an attachment (supported extensions:  .rtf, .md, .html, .pdf, .txt, .doc, .docx, .xls, .xlsx, .csv, .pptx, .ppt, .png, .jpg, .jpeg).',
+            'If provided, the file will be uploaded and sent with the message.',
+            'Text files (.txt) are automatically converted to PDF format.',
+            'You may use either a relative path (within the workspace) or an absolute/full path.'
+          ].join(' ')
         }
       },
       required: ['content', 'recipient']
@@ -150,21 +155,35 @@ export const communicationTools: Tool[] = [
           additionalProperties: false
       }
   },
-  {
-    name: "get_user_associated_vessels",
-    description: "Retrieves a list of vessels associated with a specific user (by email).",
-    inputSchema: {
-        type: "object",
-        properties: {
-            emailId: {
-                type: "string",
-                description: "The email address of the user to find associated vessels for."
-            }
-        },
-        required: ["emailId"],
-        additionalProperties: false
-    }
-  },
+    {
+        name: "get_vessel_details",
+        description: "Retrieves vessel details including IMO number, vessel name, class, flag, DOC and the ERP version for a specific vessel.",
+        inputSchema: {
+            type: "object",
+            properties: {
+                vessel_name: {
+                    type: "string", 
+                    description: "Pass the vessel name to search for the IMO number"
+                }
+            },
+            required: ["vessel_name"]
+        }
+    },
+  // {
+  //   name: "get_user_associated_vessels",
+  //   description: "Retrieves a list of vessels associated with a specific user (by email).",
+  //   inputSchema: {
+  //       type: "object",
+  //       properties: {
+  //           emailId: {
+  //               type: "string",
+  //               description: "The email address of the user to find associated vessels for."
+  //           }
+  //       },
+  //       required: ["emailId"],
+  //       additionalProperties: false
+  //   }
+  // },
   {
     name: "get_user_task_list",
     description: "Retrieves a list of pending and completed tasks associated with a specific user (by email).",
