@@ -49,7 +49,7 @@ export const communicationTools: Tool[] = [
         },
         attachment_paths: {
           type: 'array',
-          description: 'Optional list of local file paths to attachments (supported extensions: .rtf, .md, .html, .pdf, .txt, .doc, .docx, .xls, .xlsx, .csv, .pptx, .ppt, .png, .jpg, .jpeg). If provided, the files will be attached to the email. You may use either a relative path (within the workspace) or an absolute/full path.',
+          description: 'Optional list of local file paths to attachments. Only relative paths starting with "workspaces/" are allowed (e.g., workspaces/your-folder/yourfile.pdf). Supported extensions: .rtf, .md, .html, .pdf, .txt, .doc, .docx, .xls, .xlsx, .csv, .pptx, .ppt, .png, .jpg, .jpeg. If provided, the files will be attached to the email.',
           items: { type: 'string' }
         }
       },
@@ -59,7 +59,7 @@ export const communicationTools: Tool[] = [
   {
     name: 'whatsapp_communication',
     description: [
-      'Use this tool to send quick, informal text messages via WhatsApp.',
+      'Use this tool to send quick, informal text messages with or without attachments via WhatsApp.',
       'It is designed for real-time, individual communication using a phone number.',
       'Only one phone number can be messaged per tool call.'
     ].join(' '),
@@ -88,12 +88,7 @@ export const communicationTools: Tool[] = [
         },
         attachment_path: {
           type: 'string',
-          description: [
-            'Optional local file path to an attachment (supported extensions:  .rtf, .md, .html, .pdf, .txt, .doc, .docx, .xls, .xlsx, .csv, .pptx, .ppt, .png, .jpg, .jpeg).',
-            'If provided, the file will be uploaded and sent with the message.',
-            'Text files (.txt) are automatically converted to PDF format.',
-            'You may use either a relative path (within the workspace) or an absolute/full path.'
-          ].join(' ')
+          description: 'Optional local file path to an attachment. Only relative paths starting with "workspaces/" are allowed (e.g., workspaces/your-folder/yourfile.pdf). Supported extensions: .rtf, .md, .html, .pdf, .txt, .doc, .docx, .xls, .xlsx, .csv, .pptx, .ppt, .png, .jpg, .jpeg. If provided, the file will be uploaded and sent with the message.',
         }
       },
       required: ['content', 'recipient']
