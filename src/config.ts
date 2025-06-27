@@ -9,6 +9,10 @@ export interface Config {
         uri: string;
         dbName: string;
     };
+    mongodbEtlDev: {
+        uri: string;
+        dbName: string;
+    };
     oauth: {
         clientId: string;
         clientSecret: string;
@@ -40,12 +44,14 @@ export interface Config {
         apiKey: string;
         vendorModel: string;
     };
+    syiaApiKey: string;
 }
 
 function parseArgs(): Config {
     const args = process.argv.slice(2);
     const config: Partial<Config> = {
         mongodb: {} as Config['mongodb'],
+        mongodbEtlDev: {} as Config['mongodbEtlDev'],
         oauth: {} as Config['oauth'],
         whatsapp: {} as Config['whatsapp'],
         typesense: {} as Config['typesense'],
@@ -59,6 +65,10 @@ function parseArgs(): Config {
             config.mongodb!.uri = args[++i];
         } else if (arg === '--db-name' && i + 1 < args.length) {
             config.mongodb!.dbName = args[++i];
+        } else if (arg === '--mongodb-etl-dev-uri' && i + 1 < args.length) {
+            config.mongodbEtlDev!.uri = args[++i];
+        } else if (arg === '--mongodb-etl-dev-db-name' && i + 1 < args.length) {
+            config.mongodbEtlDev!.dbName = args[++i];
         } else if (arg === '--typesense-host' && i + 1 < args.length) {
             config.typesense!.host = args[++i];
         } else if (arg === '--typesense-port' && i + 1 < args.length) {
@@ -101,6 +111,8 @@ function parseArgs(): Config {
             config.llamaIndex!.apiKey = args[++i];
         } else if (arg === '--llama-index-vendor-model' && i + 1 < args.length) {
             config.llamaIndex!.vendorModel = args[++i];
+        } else if (arg === '--syia-api-key' && i + 1 < args.length) {
+            config.syiaApiKey = args[++i];
         }
     }
 
@@ -108,6 +120,10 @@ function parseArgs(): Config {
         mongodb: {
             uri: config.mongodb?.uri || process.env.MONGO_URI || '',
             dbName: config.mongodb?.dbName || process.env.DB_NAME || '',
+        },
+        mongodbEtlDev: {
+            uri: config.mongodbEtlDev?.uri || process.env.MONGODB_ETL_DEV_URI || '',
+            dbName: config.mongodbEtlDev?.dbName || process.env.MONGODB_ETL_DEV_DB_NAME || '',
         },
         oauth: {
             clientId: config.oauth?.clientId || process.env.OAUTH_CLIENT_ID || '',
@@ -140,6 +156,7 @@ function parseArgs(): Config {
             apiKey: config.llamaIndex?.apiKey || process.env.LLAMA_INDEX_API_KEY || '',
             vendorModel: config.llamaIndex?.vendorModel || process.env.LLAMA_INDEX_VENDOR_MODEL || '',
         },
+        syiaApiKey: config.syiaApiKey || process.env.SYIA_API_KEY || '',
     };
 }
 

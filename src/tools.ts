@@ -5,14 +5,15 @@ import { OAuth2Client } from 'google-auth-library';
 import axios from 'axios';
 import mime from 'mime-types';
 import fs from 'fs/promises';
-import { createReadStream, createWriteStream } from 'fs';
+import { createReadStream, createWriteStream, link } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import FormData from 'form-data';
-import PDFDocument from 'pdfkit';
+import PDFDocument, { pattern } from 'pdfkit';
 import { config } from './config.js';
 import { toolDefinitions } from './tool-schemas.js';
 import Typesense from 'typesense';
+import { MongoClient } from 'mongodb';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -47,6 +48,10 @@ interface GoogleSearchRequest {
 interface ParseDocumentLinkRequest {
   document_link: string;
   parsing_instruction: string;
+}
+
+interface GetVesselDetailsRequest {
+  vessel_name: string;
 }
 
 interface GetUserAssociatedVesselsRequest {
@@ -139,6 +144,8 @@ export function registerTools(server: Server): void {
             return await getUserAssociatedVessels(args as unknown as GetUserAssociatedVesselsRequest);
         case "get_user_task_list":
             return await getUserTaskList(args as unknown as GetUserTaskListRequest);
+        case "get_vessel_details":
+            return await getVesselDetails(args as unknown as GetVesselDetailsRequest);
         default:
           throw new Error(`Unknown tool: ${name}`);
       }
@@ -1097,5 +1104,423 @@ async function getUserTaskList(args: GetUserTaskListRequest): Promise<CallToolRe
 
   } catch (error) {
       throw new Error(`Failed to fetch user task list: ${error}`);
+  }
+}
+
+async function getComponentData(componentId: string): Promise<string> {
+  const match = componentId.match(/^(\d+)_(\d+)_(\d+)$/);
+  if (!match) {
+      return `⚠️ Invalid component_id format: ${componentId}`;
+  }
+
+  const [, componentNumber, questionNumber, imo] = match;
+  const componentNo = `${componentNumber}_${questionNumber}_${imo}`;
+
+  try {
+      const mongoUri = config.mongodbEtlDev.uri;
+      const dbName = config.mongodbEtlDev.dbName;
+      const client = new MongoClient(mongoUri);
+      const db = client.db(dbName);
+      const collection = db.collection('vesselinfocomponents');
+
+      const doc = await collection.findOne({ componentNo });
+      if (!doc) {
+          return `⚠️ No component found for ID: ${componentId}`;
+      }
+
+      if (!doc.data) {
+          return "No data found in the table component";
+      }
+
+      // Extract headers excluding lineitem
+      const headers = doc.data.headers
+          .filter((h: any) => h.name !== "lineitem")
+          .map((h: any) => h.name);
+
+      const rows = doc.data.body;
+
+      // Build markdown table
+      let md = "| " + headers.join(" | ") + " |\n";
+      md += "| " + headers.map(() => "---").join(" | ") + " |\n";
+
+      for (const row of rows) {
+          const formattedRow = row
+              .filter((cell: any) => !cell.lineitem) // Exclude lineitem
+              .map((cell: any) => {
+                  if (cell.value && cell.link) {
+                      return `[${cell.value}](${cell.link})`;
+                  } else if (cell.status && cell.color) {
+                      return cell.status;
+                  }
+                  return String(cell);
+              });
+          md += "| " + formattedRow.join(" | ") + " |\n";
+      }
+
+      return md;
+  } catch (error: any) {
+      console.error('Error getting component data:', error);
+      throw new Error(`Error getting component data: ${error.message}`);
+  }
+}  
+
+/**
+ * Add component data to the answer
+ */
+async function addComponentData(answer: string, imo: string): Promise<string> {
+  const pattern = /httpsdev\.syia\.ai\/chat\/ag-grid-table\?component=(\d+_\d+)/g;
+  const matches = Array.from(answer.matchAll(pattern));
+  
+  let result = answer;
+  for (const match of matches) {
+      const component = match[1];
+      try {
+          const replacement = await getComponentData(`${component}_${imo}`);
+          result = result.replace(match[0], replacement);
+      } catch (error) {
+          console.error('Error replacing component data:', error);
+      }
+  }
+  
+  return result;
+}
+
+/**
+ * Fetch vessel QnA snapshot
+ */
+async function getVesselQnASnapshot(imo: string, questionNo: string): Promise<any> {
+  try {
+      // API endpoint
+      const snapshotUrl = `https://dev-api.siya.com/v1.0/vessel-info/qna-snapshot/${imo}/${questionNo}`;
+      
+      // Authentication token
+      const jwtToken = `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7ImlkIjoiNjRkMzdhMDM1Mjk5YjFlMDQxOTFmOTJhIiwiZmlyc3ROYW1lIjoiU3lpYSIsImxhc3ROYW1lIjoiRGV2IiwiZW1haWwiOiJkZXZAc3lpYS5haSIsInJvbGUiOiJhZG1pbiIsInJvbGVJZCI6IjVmNGUyODFkZDE4MjM0MzY4NDE1ZjViZiIsImlhdCI6MTc0MDgwODg2OH0sImlhdCI6MTc0MDgwODg2OCwiZXhwIjoxNzcyMzQ0ODY4fQ.1grxEO0aO7wfkSNDzpLMHXFYuXjaA1bBguw2SJS9r2M`;
+      
+      // Headers for the request
+      const headers = {
+          "Authorization": jwtToken
+      };
+      
+      console.log(`Fetching vessel QnA snapshot for IMO: ${imo}, Question: ${questionNo}`);
+      const response = await fetch(snapshotUrl, {
+          method: 'GET',
+          headers
+      });
+      
+      if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json() as any;
+      
+      // Return resultData if it exists, otherwise return the full response
+      if (data && "resultData" in data && typeof data.resultData === 'string') {
+          return data.resultData;
+      }
+      return data;
+  } catch (error: any) {
+      console.error(`Error fetching vessel QnA snapshot for IMO ${imo}, Question ${questionNo}:`, error);
+      return null;
+  }
+}
+/**
+ * Fetch QA details
+ */
+async function fetchQADetails(imo: string, qaId: number): Promise<CallToolResult> {
+  try {
+      const { MongoDBClient } = await import('./database.js');
+      const mongoClient = new MongoDBClient();
+      await mongoClient.connect();
+      
+      // Get connection to dev-syia-api database
+      const db = mongoClient.db;  
+      
+      // Get connection to dev-syia-api database
+      const vesselinfos = db.collection('vesselinfos');
+
+      const query = {
+          'imo': parseInt(imo),
+          'questionNo': qaId
+      };
+
+      const projection = {
+          '_id': 0,
+          'imo': 1,
+          'vesselName': 1,
+          'refreshDate': 1,
+          'answer': 1
+      };
+
+      interface QAResponse {
+          imo: number;
+          vesselName: string | null;
+          refreshDate: string | null;
+          answer: string | null;
+          link?: string | null;
+      }
+
+      const mongoResult = await vesselinfos.findOne(query, { projection });
+      let res: QAResponse = mongoResult ? {
+          imo: mongoResult.imo as number,
+          vesselName: mongoResult.vesselName as string | null,
+          refreshDate: mongoResult.refreshDate as string | null,
+          answer: mongoResult.answer as string | null
+      } : {
+          imo: parseInt(imo),
+          vesselName: null,
+          refreshDate: null,
+          answer: null
+      };
+
+      // Format refresh date if it exists
+      if (res.refreshDate && new Date(res.refreshDate).toString() !== 'Invalid Date') {
+          res.refreshDate = new Date(res.refreshDate).toLocaleDateString('en-US', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric'
+          });
+      }
+
+      // Process answer with component data if it exists
+      if (res.answer) {
+          res.answer = await addComponentData(res.answer, imo);
+      }
+
+      // Get vessel QnA snapshot link
+      try {
+          res.link = await getVesselQnASnapshot(imo, qaId.toString());
+      } catch (error) {
+          res.link = null;
+      }
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(res, null, 2),
+          title: `QA details for ${imo} - ${qaId}`
+        }]
+      };
+  } catch (error: any) {
+      console.error('Error fetching QA details:', error);
+      throw new Error(`Error fetching QA details: ${error.message}`);
+  }
+}
+
+async function insertDataLinkToMongoDB(link: string, type: string, sessionId: string, imo: string, vesselName: string): Promise<void> {
+  try {
+      const { MongoDBClient } = await import('./database.js');
+      const mongoClient = new MongoDBClient();
+      await mongoClient.connect();
+      const db = mongoClient.db;
+      await db.collection('data_links').insertOne({
+          link,
+          type,
+          sessionId,
+          imo,
+          vesselName,
+          createdAt: new Date()
+      });
+  } catch (error: any) {
+      console.error('Error inserting data link to MongoDB:', error);
+      throw new Error(`Error inserting data link to MongoDB: ${error.message}`);
+  }
+}
+
+async function getArtifact(toolName: string, link: string): Promise<any> {
+  try {
+      const timestamp = Math.floor(Date.now() / 1000);
+      const artifact = {
+          id: `msg_browser_${Math.random().toString(36).substring(2, 8)}`,
+          parentTaskId: `task_${toolName}_${Math.random().toString(36).substring(2, 8)}`,
+          timestamp,
+          agent: {
+              id: "agent_siya_browser",
+              name: "SIYA",
+              type: "qna"
+          },
+          messageType: "action",
+          action: {
+              tool: "browser",
+              operation: "browsing",
+              params: {
+                  url: link,
+                  pageTitle: `Tool response for ${toolName}`,
+                  visual: {
+                      icon: "browser",
+                      color: "#2D8CFF"
+                  },
+                  stream: {
+                      type: "vnc",
+                      streamId: "stream_browser_1",
+                      target: "browser"
+                  }
+              }
+          },
+          content: `Viewed page: ${toolName}`,
+          artifacts: [
+              {
+                  id: `artifact_webpage_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+                  type: "browser_view",
+                  content: {
+                      url: link,
+                      title: toolName,
+                      screenshot: "",
+                      textContent: `Observed output of cmd \`${toolName}\` executed:`,
+                      extractedInfo: {}
+                  },
+                  metadata: {
+                      domainName: "example.com",
+                      visitTimestamp: Date.now(),
+                      category: "web_page"
+                  }
+              }
+          ],
+          status: "completed"
+      };
+
+      return artifact;
+  } catch (error: any) {
+      console.error('Error getting artifact:', error);
+      throw new Error(`Error getting artifact: ${error.message}`);
+  }
+}
+
+/**
+ * Get vessel details
+ */
+async function getVesselDetails(args: GetVesselDetailsRequest): Promise<CallToolResult> {
+  const vesselName = args.vessel_name;
+
+  if (!vesselName) {
+    return {
+      content: [{
+        type: "text",
+        text: "Error: 'vesselName' parameter is required for vessel details search"
+      }]
+    };
+  }
+
+  if (!config.typesense.host || !config.typesense.port || !config.typesense.protocol || !config.typesense.apiKey) {
+    return { 
+      content: [{ type: 'text', text: 'Error: Typesense credentials not configured.' }]
+    };
+  }
+
+  try {
+    console.log(`Searching for vessel details with vessel name: ${vesselName}`);
+
+    // Set up search parameters for the fleet-vessel-lookup collection
+    const searchParameters = {
+      q: vesselName,
+      query_by: "vesselName",
+      collection: "fleet-vessel-lookup",
+      per_page: 1,
+      include_fields: "vesselName,imo,class,flag,shippalmDoc,isV3",
+      prefix: false,
+      num_typos: 2
+    };
+
+    const typesenseClient = new Typesense.Client({
+      nodes: [{
+        host: config.typesense.host,
+        port: config.typesense.port,
+        protocol: config.typesense.protocol,
+      }],
+      apiKey: config.typesense.apiKey,
+      connectionTimeoutSeconds: 10,
+    });
+
+    // Execute search
+    const raw = await typesenseClient.collections("fleet-vessel-lookup").documents().search(searchParameters);
+    const hits = raw.hits || [];
+
+    if (!hits.length) {
+      return {
+        content: [{
+          type: "text",
+          text: `No vessels found named '${vesselName}'.`
+        }]
+      };
+    }
+
+    // Get the first hit from the search results
+    const doc = hits[0].document as any;
+
+    // Fetch QA details for question 181
+    const qaResult = await fetchQADetails(doc.imo.toString(), 181);
+    
+    if (!qaResult?.content?.[0]?.text) {
+      throw new Error('Invalid QA result structure');
+    }
+
+    let qaContent: string;
+    let link: string | null = null;
+
+    try {
+      const qaJson = JSON.parse(qaResult.content[0].text as string) as { answer?: string };
+      qaContent = qaJson.answer || '';
+      
+      // Safely parse link if it exists
+      if (qaResult.content[0].link) {
+        const linkJson = JSON.parse(qaResult.content[0].link as string) as { link?: string };
+        link = linkJson.link || null;
+      }
+    } catch (parseError) {
+      console.error("Error parsing QA content:", parseError);
+      throw new Error('Failed to parse vessel details data');
+    }
+
+    // Process and format results
+    const results = {
+      vesselName: doc.vesselName,
+      imo: doc.imo,
+      class: doc.class,
+      flag: doc.flag,
+      shippalmDoc: doc.shippalmDoc,
+      isV3: doc.isV3,
+      vesselParticulars: qaContent
+    };
+
+    // Only insert link to MongoDB if we have a valid link
+    if (link) {
+      await insertDataLinkToMongoDB(link, "vessel_details", "get_vessel_details", doc.imo.toString(), vesselName);
+      const artifactData = await getArtifact("get_vessel_details", link);
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(results, null, 2),
+            title: `Vessel details for '${vesselName}'`,
+            format: "json"
+          },
+          {
+            type: "text",
+            text: JSON.stringify(artifactData, null, 2),
+            title: "Artifact Data",
+            format: "json"
+          }
+        ]
+      };
+    }
+
+    // Return results without artifact data if no link
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify(results, null, 2),
+        title: `Vessel details for '${vesselName}'`,
+        format: "json"
+      }]
+    };
+
+  } catch (error: any) {
+    console.error("Error searching for vessel details:", error);
+    return {
+      content: [{
+        type: "text",
+        text: `Error querying vessel details: ${error.message}`
+      }]
+    };
   }
 }

@@ -155,21 +155,35 @@ export const communicationTools: Tool[] = [
           additionalProperties: false
       }
   },
-  {
-    name: "get_user_associated_vessels",
-    description: "Retrieves a list of vessels associated with a specific user (by email).",
-    inputSchema: {
-        type: "object",
-        properties: {
-            emailId: {
-                type: "string",
-                description: "The email address of the user to find associated vessels for."
-            }
-        },
-        required: ["emailId"],
-        additionalProperties: false
-    }
-  },
+    {
+        name: "get_vessel_details",
+        description: "Retrieves vessel details including IMO number, vessel name, class, flag, DOC and the ERP version for a specific vessel.",
+        inputSchema: {
+            type: "object",
+            properties: {
+                vessel_name: {
+                    type: "string", 
+                    description: "Pass the vessel name to search for the IMO number"
+                }
+            },
+            required: ["vessel_name"]
+        }
+    },
+  // {
+  //   name: "get_user_associated_vessels",
+  //   description: "Retrieves a list of vessels associated with a specific user (by email).",
+  //   inputSchema: {
+  //       type: "object",
+  //       properties: {
+  //           emailId: {
+  //               type: "string",
+  //               description: "The email address of the user to find associated vessels for."
+  //           }
+  //       },
+  //       required: ["emailId"],
+  //       additionalProperties: false
+  //   }
+  // },
   {
     name: "get_user_task_list",
     description: "Retrieves a list of pending and completed tasks associated with a specific user (by email).",
