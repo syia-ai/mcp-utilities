@@ -1194,7 +1194,7 @@ async function getVesselQnASnapshot(imo: string, questionNo: string): Promise<an
       const snapshotUrl = `https://dev-api.siya.com/v1.0/vessel-info/qna-snapshot/${imo}/${questionNo}`;
       
       // Authentication token
-      const jwtToken = `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7ImlkIjoiNjRkMzdhMDM1Mjk5YjFlMDQxOTFmOTJhIiwiZmlyc3ROYW1lIjoiU3lpYSIsImxhc3ROYW1lIjoiRGV2IiwiZW1haWwiOiJkZXZAc3lpYS5haSIsInJvbGUiOiJhZG1pbiIsInJvbGVJZCI6IjVmNGUyODFkZDE4MjM0MzY4NDE1ZjViZiIsImlhdCI6MTc0MDgwODg2OH0sImlhdCI6MTc0MDgwODg2OCwiZXhwIjoxNzcyMzQ0ODY4fQ.1grxEO0aO7wfkSNDzpLMHXFYuXjaA1bBguw2SJS9r2M`;
+      const jwtToken = `Bearer ${config.syiaApiKey}`;
       
       // Headers for the request
       const headers = {
