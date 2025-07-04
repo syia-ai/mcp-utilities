@@ -466,7 +466,7 @@ async function whatsappCommunication(args: WhatsAppRequest): Promise<CallToolRes
         if (attachmentPath) {
             const ext = path.extname(attachmentPath).toLowerCase();
             // Supported formats
-            const supported = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt'];
+            const supported = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.png', '.jpg', '.jpeg'];
             if (!supported.includes(ext)) {
                 // Convert unsupported to PDF
                 attachmentPath = await _convertToPdf(attachmentPath, ext);
