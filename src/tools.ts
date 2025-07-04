@@ -35,7 +35,7 @@ interface WhatsAppRequest {
   attachment_path?: string;
 }
 
-interface FleetVesselLookupRequest {
+interface GetVesselPersonnelInfoRequest {
   name_query?: string;
   vessel_query?: string;
   email_query?: string;
@@ -134,8 +134,8 @@ export function registerTools(server: Server): void {
           return await mailCommunication(args as unknown as EmailRequest);
         case 'whatsapp_communication':
           return await whatsappCommunication(args as unknown as WhatsAppRequest);
-        case 'fleet_vessel_lookup':
-          return await fleetVesselLookup(args as unknown as FleetVesselLookupRequest);
+        case 'get_vessel_personnel_info':
+          return await get_vessel_personnel_info(args as unknown as GetVesselPersonnelInfoRequest);
         case "google_search":
             return await googleSearch(args as unknown as GoogleSearchRequest);
         case "parse_document_link":
@@ -517,7 +517,7 @@ async function whatsappCommunication(args: WhatsAppRequest): Promise<CallToolRes
     }
 }
 
-async function fleetVesselLookup(args: FleetVesselLookupRequest): Promise<CallToolResult> {
+async function get_vessel_personnel_info(args: GetVesselPersonnelInfoRequest): Promise<CallToolResult> {
   const { name_query, vessel_query, email_query } = args;
 
   const providedQueries = {
@@ -647,7 +647,7 @@ async function fleetVesselLookup(args: FleetVesselLookupRequest): Promise<CallTo
     return { content: [{ type: 'text', text: responseText }] };
 
   } catch (error) {
-    console.error(`Error during fleet_vessel_lookup:`, error);
+    console.error(`Error during get_vessel_personnel_info:`, error);
     let errorMessage = `An error occurred: ${error}`;
     if (error instanceof Error && 'errors' in error && Array.isArray((error as any).errors)) {
       errorMessage = `An aggregate error occurred: ${error.message}. Individual errors: ` + (error as any).errors.map((e: any) => e.message || String(e)).join('; ');

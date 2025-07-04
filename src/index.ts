@@ -7,12 +7,12 @@ import { registerPrompts } from './prompts.js';
 import { config } from './config.js';
 
 async function main(): Promise<void> {
-  console.log('Starting MCP Communication server...');
+  console.log('Starting MCP Utilities server...');
 
   // Create server instance
   const server = new Server(
     {
-      name: 'mcp-communication',
+      name: 'mcp-utilities',
       version: '1.0.0'
     },
     {
