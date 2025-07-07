@@ -177,6 +177,10 @@ export const communicationTools: Tool[] = [
               document_link: {
                   type: "string",
                   description: "The link to the document that needs to be parsed"
+              },
+              parsing_instruction: {
+                  type: "string",
+                  description: "Optional parsing instructions to guide how the document should be processed"
               }
           },
           additionalProperties: false

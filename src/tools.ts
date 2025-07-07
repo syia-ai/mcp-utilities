@@ -5,11 +5,11 @@ import { OAuth2Client } from 'google-auth-library';
 import axios from 'axios';
 import mime from 'mime-types';
 import fs from 'fs/promises';
-import { createReadStream, createWriteStream, link } from 'fs';
+import { createReadStream, createWriteStream } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import FormData from 'form-data';
-import PDFDocument, { pattern } from 'pdfkit';
+import PDFDocument from 'pdfkit';
 import { config } from './config.js';
 import { toolDefinitions } from './tool-schemas.js';
 import Typesense from 'typesense';
@@ -284,6 +284,34 @@ async function sendGmail(emailData: EmailRequest): Promise<{ status: string; out
 
 async function mailCommunication(args: EmailRequest): Promise<CallToolResult> {
   try {
+    // Input validation
+    if (!args.subject || args.subject.trim().length === 0) {
+      return {
+        content: [{
+          type: 'text' as const,
+          text: 'Error: Email subject is required'
+        }]
+      };
+    }
+    
+    if (!args.content || args.content.trim().length === 0) {
+      return {
+        content: [{
+          type: 'text' as const,
+          text: 'Error: Email content is required'
+        }]
+      };
+    }
+    
+    if (!args.recipient || args.recipient.length === 0) {
+      return {
+        content: [{
+          type: 'text' as const,
+          text: 'Error: At least one recipient is required'
+        }]
+      };
+    }
+    
     const result = await sendGmail(args);
     return {
       content: [
@@ -293,9 +321,14 @@ async function mailCommunication(args: EmailRequest): Promise<CallToolResult> {
         }
       ]
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failure to communicate through mail:', error);
-    throw error;
+    return {
+      content: [{
+        type: 'text' as const,
+        text: `Error sending email: ${error.message}`
+      }]
+    };
   }
 }
 
@@ -454,6 +487,25 @@ async function whatsappCommunication(args: WhatsAppRequest): Promise<CallToolRes
     };
 
     try {
+        // Input validation
+        if (!args.recipient || args.recipient.trim().length === 0) {
+            return {
+                content: [{
+                    type: 'text' as const,
+                    text: 'Error: WhatsApp recipient is required'
+                }]
+            };
+        }
+        
+        if (!args.content || args.content.trim().length === 0) {
+            return {
+                content: [{
+                    type: 'text' as const,
+                    text: 'Error: WhatsApp message content is required'
+                }]
+            };
+        }
+        
         const recipient = args.recipient;
         const message = args.content;
         let attachmentPath = args.attachment_path;
@@ -597,7 +649,7 @@ async function get_vessel_personnel_info(args: GetVesselPersonnelInfoRequest): P
     let searchParameters: any = {
       q: '*',
       filter_by: filterQuery,
-      per_page: 50,
+      per_page: 250,
     };
     
     let searchResults = await client.collections('fleet-vessel-lookup').documents().search(searchParameters);
@@ -729,14 +781,24 @@ async function googleSearch(args: GoogleSearchRequest): Promise<CallToolResult> 
       }
   } catch (error: any) {
       console.error(`Failure to execute the search operation: ${error}`);
-      throw error;
+      return {
+        content: [{
+          type: "text",
+          text: `Error performing search: ${error.message}`
+        }]
+      };
   }
 }
 
 async function parseDocumentLink(args: ParseDocumentLinkRequest): Promise<CallToolResult> {
 const documentLink = args.document_link;
 if (!documentLink) {
-  throw new Error("document_link is required");
+  return {
+    content: [{
+      type: "text",
+      text: "Error: document_link is required"
+    }]
+  };
 }
 
 try {
@@ -810,7 +872,12 @@ async function getUserAssociatedVessels(args: GetUserAssociatedVesselsRequest): 
   const mailId = args.emailId;
   
   if (!mailId) {
-      throw new Error("mailId (email) is required");
+      return {
+        content: [{
+          type: "text",
+          text: "Error: emailId is required"
+        }]
+      };
   }
   
   try {
@@ -963,7 +1030,12 @@ async function getUserTaskList(args: GetUserTaskListRequest): Promise<CallToolRe
   const mailId = args.emailId;
   
   if (!mailId) {
-      throw new Error("mailId (email) is required");
+      return {
+        content: [{
+          type: "text",
+          text: "Error: emailId is required"
+        }]
+      };
   }
 
   try {
@@ -987,7 +1059,7 @@ async function getUserTaskList(args: GetUserTaskListRequest): Promise<CallToolRe
           return {
               content: [{
                   type: "text",
-                  text: JSON.stringify({ todaysTask: [], pendingTasks: [], urls: [] }, null, 2),
+                  text: JSON.stringify({ pendingTasks: [], urls: [] }, null, 2),
                   title: `No task data found for mailId ${mailId}`
               }]
           };
@@ -996,67 +1068,20 @@ async function getUserTaskList(args: GetUserTaskListRequest): Promise<CallToolRe
       // name of the user
       const userName = userTaskDocument.name;
 
-      //email of the user
+      // email of the user
       const userEmail = userTaskDocument.email;
 
-
-      // Get today's date and last 7 days range
-      const today = new Date();
-      const todayDate = today.toISOString().split('T')[0];
-      
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      const sevenDaysAgoDate = sevenDaysAgo.toISOString().split('T')[0];
-
-      // Filter today's tasks and return only required fields
-      const todaysTaskFiltered = userTaskDocument.task_list?.filter((task: any) => {
-          if (!task.taskDate) return false;
-          try {
-              // Parse the ISO datetime string and extract date part
-              const taskDate = new Date(task.taskDate);
-              const taskDateOnly = taskDate.toISOString().split('T')[0];
-              return taskDateOnly === todayDate;
-          } catch (error) {
-              console.warn('Invalid taskDate format:', task.taskDate);
-              return false;
-          }
-      }).map((task: any) => ({
+      // Map all tasks to include required fields
+      const pendingTasksFiltered = userTaskDocument.task_list?.map((task: any) => ({
           task: task.task,
           taskDate: task.taskDate,
           casefile_url: task.casefile_url,
-          vesselName: task.vesselName
+          vesselName: task.vesselName,
+          casefile: task.casefile
       })) || [];
 
-      // Filter pending tasks for last 7 days (excluding today) and return only required fields
-      const pendingTasksFiltered = userTaskDocument.task_list?.filter((task: any) => {
-          if (!task.taskDate) return false;
-          try {
-              // Parse the ISO datetime string and extract date part
-              const taskDate = new Date(task.taskDate);
-              const taskDateOnly = taskDate.toISOString().split('T')[0];
-              return taskDateOnly >= sevenDaysAgoDate && taskDateOnly < todayDate;
-          } catch (error) {
-              console.warn('Invalid taskDate format:', task.taskDate);
-              return false;
-          }
-      }).map((task: any) => ({
-          task: task.task,
-          taskDate: task.taskDate,
-          casefile_url: task.casefile_url,
-          vesselName: task.vesselName
-      })) || [];
-
-      // Collect URLs from both today's and pending tasks
+      // Collect URLs from tasks
       const urls: string[] = [];
-      
-      // Collect URLs from today's tasks
-      todaysTaskFiltered.forEach((task: any) => {
-          if (task.casefile_url) {
-              urls.push(task.casefile_url);
-          }
-      });
-
-      // Collect URLs from pending tasks
       pendingTasksFiltered.forEach((task: any) => {
           if (task.casefile_url) {
               urls.push(task.casefile_url);
@@ -1067,25 +1092,16 @@ async function getUserTaskList(args: GetUserTaskListRequest): Promise<CallToolRe
       const to_return = {
         name: userName,
         email: userEmail,
-        todaysTask: todaysTaskFiltered,
         pendingTasks: pendingTasksFiltered
       };
 
-      // Combine all tasks with URLs for artifact generation
-      const allTasksWithUrls: TaskResult[] = [
-        ...todaysTaskFiltered.map((task: any) => ({
+      // Create tasks with URLs for artifact generation
+      const allTasksWithUrls: TaskResult[] = pendingTasksFiltered.map((task: any) => ({
           url: task.casefile_url,
-          title: task.task || 'Today\'s Task',
+          title: task.task || 'Task',
           task: task.task,
           taskDate: task.taskDate
-        })),
-        ...pendingTasksFiltered.map((task: any) => ({
-          url: task.casefile_url,
-          title: task.task || 'Pending Task',
-          task: task.task,
-          taskDate: task.taskDate
-        }))
-      ].filter((task: TaskResult) => task.url); // Only include tasks with URLs
+      })).filter((task: TaskResult) => task.url); // Only include tasks with URLs
 
       // Generate artifacts using the converted function
       const artifacts = await getListOfArtifacts('getUserTaskList', allTasksWithUrls);
@@ -1102,8 +1118,14 @@ async function getUserTaskList(args: GetUserTaskListRequest): Promise<CallToolRe
         content: [mainContent, ...artifacts]
       };
 
-  } catch (error) {
-      throw new Error(`Failed to fetch user task list: ${error}`);
+  } catch (error: any) {
+      console.error('Error fetching user task list:', error);
+      return {
+        content: [{
+          type: "text",
+          text: `Error fetching user task list: ${error.message}`
+        }]
+      };
   }
 }
 
@@ -1190,8 +1212,18 @@ async function addComponentData(answer: string, imo: string): Promise<string> {
  */
 async function getVesselQnASnapshot(imo: string, questionNo: string): Promise<any> {
   try {
-      // API endpoint
-      const snapshotUrl = `https://dev-api.siya.com/v1.0/vessel-info/qna-snapshot/${imo}/${questionNo}`;
+      // Validate inputs
+      if (!imo || !questionNo) {
+          throw new Error('IMO and question number are required');
+      }
+      
+      if (!config.syiaApiKey) {
+          throw new Error('SYIA API key not configured');
+      }
+      
+      // API endpoint - use environment variable for base URL if available
+      const baseUrl = process.env.SYIA_API_BASE_URL || 'https://dev-api.siya.com';
+      const snapshotUrl = `${baseUrl}/v1.0/vessel-info/qna-snapshot/${imo}/${questionNo}`;
       
       // Authentication token
       const jwtToken = `Bearer ${config.syiaApiKey}`;
