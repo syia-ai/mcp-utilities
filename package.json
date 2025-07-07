@@ -1,6 +1,6 @@
 {
   "name": "mcp-utilities",
-  "version": "1.0.7",
+  "version": "1.0.9",
   "description": "MCP Communication Server - Node.js TypeScript Implementation for Email and WhatsApp communication",
   "main": "dist/index.js",
   "type": "module",
@@ -17,7 +17,8 @@
     "postinstall": "node scripts/install.js",
     "install-global": "npm install -g .",
     "oauth-setup": "tsx src/oauth-setup.ts",
-    "version-bump": "node scripts/version-bump.js"
+    "version-bump": "node scripts/version-bump.js",
+    "release": "node scripts/release.js"
   },
   "keywords": [
     "mcp",
