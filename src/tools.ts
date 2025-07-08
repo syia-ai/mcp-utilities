@@ -5,7 +5,7 @@ import { OAuth2Client } from 'google-auth-library';
 import axios from 'axios';
 import mime from 'mime-types';
 import fs from 'fs/promises';
-import { createReadStream, createWriteStream } from 'fs';
+import { createReadStream, createWriteStream, link } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import FormData from 'form-data';
@@ -48,6 +48,10 @@ interface GoogleSearchRequest {
 interface ParseDocumentLinkRequest {
   document_link: string;
   parsing_instruction: string;
+}
+
+interface GetFleetDetailsRequest {
+  fleet_name: string;
 }
 
 interface GetVesselDetailsRequest {
@@ -146,6 +150,8 @@ export function registerTools(server: Server): void {
             return await getUserTaskList(args as unknown as GetUserTaskListRequest);
         case "get_vessel_details":
             return await getVesselDetails(args as unknown as GetVesselDetailsRequest);
+        case "get_fleet_details":
+            return await getFleetDetails(args as unknown as GetFleetDetailsRequest);
         default:
           throw new Error(`Unknown tool: ${name}`);
       }
@@ -1555,4 +1561,89 @@ async function getVesselDetails(args: GetVesselDetailsRequest): Promise<CallTool
       }]
     };
   }
+}
+
+async function getFleetDetails(args: GetFleetDetailsRequest): Promise<CallToolResult> {
+  const fleetName = args.fleet_name;
+
+  if (!fleetName) {
+    return {
+      content: [{
+        type: "text",
+        text: "Error: 'fleetName' parameter is required for fleet details search"
+      }]
+    };
+  }
+
+  if (!config.typesense.host || !config.typesense.port || !config.typesense.protocol || !config.typesense.apiKey) {
+    return { 
+      content: [{ type: 'text', text: 'Error: Typesense credentials not configured.' }]
+    };
+  }
+
+  try {
+    console.log(`Searching for fleet details with fleet name: ${fleetName}`);
+
+    // Set up search parameters for the fleet-vessel-lookup collection
+    const searchParameters = {
+      q: fleetName,
+      query_by: "name",
+      per_page: 1,
+      include_fields: "imo,name",
+      prefix: false,
+      num_typos: 2
+    };
+
+    const typesenseClient = new Typesense.Client({
+      nodes: [{
+        host: config.typesense.host,
+        port: config.typesense.port,
+        protocol: config.typesense.protocol,
+      }],
+      apiKey: config.typesense.apiKey,
+      connectionTimeoutSeconds: 10,
+    });
+
+    // Execute search
+    const raw = await typesenseClient.collections("fleet-details").documents().search(searchParameters);
+    const hits = raw.hits || [];
+
+    if (!hits.length) {
+      return {
+        content: [{
+          type: "text",
+          text: `No fleet found named '${fleetName}'.`
+        }]
+      };
+    }
+
+    // Get the first hit from the search results
+    const doc = hits[0].document as any;
+
+    // Process and format results
+    const results = {
+      fleetName: doc.name,
+      imo: doc.imo
+    };
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(results, null, 2),
+            title: `Fleet details for '${fleetName}'`,
+            format: "json"
+          }
+        ]
+      };
+
+  } catch (error: any) {
+    console.error("Error searching for fleet details:", error);
+    return {
+      content: [{
+        type: "text",
+        text: `Error querying fleet details: ${error.message}`
+      }]
+    };
+  } 
 }

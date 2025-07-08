@@ -200,6 +200,20 @@ export const communicationTools: Tool[] = [
             required: ["vessel_name"]
         }
     },
+    {
+      name: "get_fleet_details",
+      description: "Retrieves fleet details including fleet name, fleet code and fleet manager details",
+      inputSchema: {
+          type: "object",
+          properties: {
+              fleet_name: {
+                  type: "string", 
+                  description: "Pass the fleet name to search for the fleet details"
+              }
+          },
+          required: ["fleet_name"]
+      }
+  },
   // {
   //   name: "get_user_associated_vessels",
   //   description: "Retrieves a list of vessels associated with a specific user (by email).",

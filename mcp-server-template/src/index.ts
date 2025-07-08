@@ -2,6 +2,8 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { registerTools } from './tools/index.js';
+import { registerResources } from './resources/index.js';
+import { registerPrompts } from './prompts/index.js';
 import { config } from './config/index.js';
 import { logger } from './utils/logger.js';
 import { errorHandler } from './middleware/error-handler.js';
@@ -26,6 +28,8 @@ async function main(): Promise<void> {
 
   // Register handlers
   registerTools(server);
+  registerResources(server);
+  registerPrompts(server);
 
   logger.info('Registered tools, resources, and prompts');
 
