@@ -13,7 +13,7 @@ async function main(): Promise<void> {
   const server = new Server(
     {
       name: 'mcp-utilities',
-      version: '1.0.10'
+      version: '1.0.11'
     },
     {
       capabilities: {
