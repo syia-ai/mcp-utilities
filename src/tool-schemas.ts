@@ -176,7 +176,7 @@ export const communicationTools: Tool[] = [
           properties: {
               document_link: {
                   type: "string",
-                  description: "The link to the document that needs to be parsed"
+                  description: "The link to the document that needs to be parsed.You may use either a relative path (within the workspace) or an absolute/full path."
               },
               parsing_instruction: {
                   type: "string",
