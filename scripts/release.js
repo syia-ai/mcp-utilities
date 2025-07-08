@@ -38,12 +38,30 @@ indexContent = indexContent.replace(
 writeFileSync(indexPath, indexContent);
 console.log(`Version updated to ${newVersion} in src/index.ts`);
 
-// Git commit and push
+// Git operations - create branch, commit, push and create PR
 try {
-  execSync('git add package.json src/index.ts', { stdio: 'inherit', cwd: packageRoot });
+  // Create a new branch with version number
+  const branchName = `release-v${newVersion}`;
+  execSync(`git checkout -b ${branchName}`, { stdio: 'inherit', cwd: packageRoot });
+  console.log(`Created new branch: ${branchName}`);
+  
+  // Add and commit changes
+  execSync('git add .', { stdio: 'inherit', cwd: packageRoot });
   execSync(`git commit -m "chore: bump version to ${newVersion}"`, { stdio: 'inherit', cwd: packageRoot });
-  execSync('git push', { stdio: 'inherit', cwd: packageRoot });
-  console.log('Changes committed and pushed to GitHub');
+  
+  // Push the branch to remote
+  execSync(`git push -u origin ${branchName}`, { stdio: 'inherit', cwd: packageRoot });
+  console.log(`Pushed branch ${branchName} to GitHub`);
+  
+  // Create a pull request using GitHub CLI if available
+  try {
+    execSync(`gh pr create --title "Release v${newVersion}" --body "Automated release PR for version ${newVersion}" --base main`, 
+      { stdio: 'inherit', cwd: packageRoot });
+    console.log('Pull request created successfully');
+  } catch (prError) {
+    console.log('Could not create PR automatically. Please create a PR manually on GitHub.');
+    console.log(`From branch: ${branchName} to main`);
+  }
 } catch (error) {
   console.error('Error during git operations:', error.message);
   process.exit(1);
