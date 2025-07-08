@@ -791,8 +791,10 @@ async function googleSearch(args: GoogleSearchRequest): Promise<CallToolResult> 
 }
 
 async function parseDocumentLink(args: ParseDocumentLinkRequest): Promise<CallToolResult> {
+console.log("parseDocumentLink called with args:", JSON.stringify(args));
 const documentLink = args.document_link;
 if (!documentLink) {
+  console.log("parseDocumentLink: document_link missing");
   return {
     content: [{
       type: "text",
@@ -802,10 +804,10 @@ if (!documentLink) {
 }
 
 try {
+  console.log("parseDocumentLink: importing parseToDocumentLink...");
   // Import your helper (wherever your parseToDocumentLink is defined)
   const { parseToDocumentLink } = await import("./document_parse/main_file_s3_to_llamaparse.js");
-      
-  console.log("About to call parseToDocumentLink with:", documentLink);
+  console.log("parseDocumentLink: import successful, about to call parseToDocumentLink with:", documentLink, args.parsing_instruction);
   
   // Call helper
   const [success, markdown] = await parseToDocumentLink(
@@ -821,9 +823,10 @@ try {
       true // deleteDownloads
   );
 
-  console.log("parseToDocumentLink result:", success, markdown ? "has content" : "no content");
+  console.log("parseDocumentLink: parseToDocumentLink result:", success, markdown ? "has content" : "no content");
 
   if (!success || !markdown) {
+      console.log("parseDocumentLink: parseToDocumentLink failed", { success, markdown });
       return {
         content: [{
           type: "text",
@@ -833,6 +836,7 @@ try {
     };
   }
 
+  console.log("parseDocumentLink: returning parsed markdown");
   return {
     content: [{
       type: "text",
@@ -844,10 +848,10 @@ try {
 
 } catch (error: any) {
   const msg = error.message || String(error);
-  console.error("Full error in parseDocumentLink:", error);
+  console.error("parseDocumentLink: Full error in catch block:", error);
 
   if (msg.includes("API_KEY is required") || msg.includes("LLAMAINDEX_API_KEY is required")) {
-      console.error(`API key configuration error: ${msg}`);
+      console.error(`parseDocumentLink: API key configuration error: ${msg}`);
       return {
         content: [{
           type: "text",
@@ -857,7 +861,7 @@ try {
   };
   }
 
-  console.error(`Error parsing document from URL ${documentLink}:`, error);
+  console.error(`parseDocumentLink: Error parsing document from URL ${documentLink}:`, error);
   return {
     content: [{
       type: "text",
