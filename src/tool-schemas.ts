@@ -188,30 +188,30 @@ export const communicationTools: Tool[] = [
   },
     {
         name: "get_vessel_details",
-        description: "Retrieves vessel details including IMO number, vessel name, class, flag, DOC and the ERP version for a specific vessel.",
+        description: "Retrieves vessel details including IMO number, vessel name, class, flag, DOC and the ERP version for a specific vessel. The vesselName parameter is required for vessel details search",
         inputSchema: {
             type: "object",
             properties: {
-                vessel_name: {
+                vesselName: {
                     type: "string", 
                     description: "Pass the vessel name to search for the IMO number"
                 }
             },
-            required: ["vessel_name"]
+            required: ["vesselName"]
         }
     },
     {
       name: "get_fleet_details",
-      description: "Retrieves fleet details including fleet name, fleet code and fleet manager details",
+      description: "Retrieves fleet details including fleet name, fleet code and fleet manager details. The fleetName parameter is required for fleet details search",
       inputSchema: {
           type: "object",
           properties: {
-              fleet_name: {
+              fleetName: {
                   type: "string", 
                   description: "Pass the fleet name to search for the fleet details"
               }
           },
-          required: ["fleet_name"]
+          required: ["fleetName"]
       }
   },
   // {

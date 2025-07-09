@@ -51,11 +51,11 @@ interface ParseDocumentLinkRequest {
 }
 
 interface GetFleetDetailsRequest {
-  fleet_name: string;
+  fleetName: string;
 }
 
 interface GetVesselDetailsRequest {
-  vessel_name: string;
+  vesselName: string;
 }
 
 interface GetUserAssociatedVesselsRequest {
@@ -1427,7 +1427,7 @@ async function getArtifact(toolName: string, link: string): Promise<any> {
  * Get vessel details
  */
 async function getVesselDetails(args: GetVesselDetailsRequest): Promise<CallToolResult> {
-  const vesselName = args.vessel_name;
+  const vesselName = args.vesselName;
 
   if (!vesselName) {
     return {
@@ -1564,7 +1564,7 @@ async function getVesselDetails(args: GetVesselDetailsRequest): Promise<CallTool
 }
 
 async function getFleetDetails(args: GetFleetDetailsRequest): Promise<CallToolResult> {
-  const fleetName = args.fleet_name;
+  const fleetName = args.fleetName;
 
   if (!fleetName) {
     return {
