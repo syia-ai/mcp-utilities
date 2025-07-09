@@ -36,7 +36,7 @@ async function main(): Promise<void> {
   
   try {
     await server.connect(transport);
-    console.log('MCP Communication server started successfully');
+    console.log('MCP Utilities server started successfully');
   } catch (error) {
     console.error('Error running MCP server:', error);
     throw error;
