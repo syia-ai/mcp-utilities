@@ -202,18 +202,18 @@ export const communicationTools: Tool[] = [
     },
     {
       name: "get_fleet_details",
-      description: "Retrieves fleet details including fleet name, fleet code and fleet manager details. The fleetName parameter is required for fleet details search",
+      description: "Retrieves imo number of the fleet . Fleet name is required for fleet imo search",
       inputSchema: {
           type: "object",
           properties: {
               fleetName: {
-                  type: "string", 
-                  description: "Pass the fleet name to search for the fleet details"
+                  type: "string",
+                  description: "Pass the fleet name to search for the fleet imo number"
               }
           },
           required: ["fleetName"]
       }
-  },
+    },
   // {
   //   name: "get_user_associated_vessels",
   //   description: "Retrieves a list of vessels associated with a specific user (by email).",
