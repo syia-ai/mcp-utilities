@@ -202,7 +202,7 @@ export const communicationTools: Tool[] = [
     },
     {
       name: "get_fleet_details",
-      description: "Retrieves fleet details including fleet name, fleet code and fleet manager details. The fleetName parameter is required for fleet details search",
+      description: "Retrieves fleet details including the actual fleet name,fleet imo, fleet code and fleet manager details, etc. The fleetName parameter is required for fleet details search",
       inputSchema: {
           type: "object",
           properties: {
