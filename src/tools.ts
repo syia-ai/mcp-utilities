@@ -55,7 +55,10 @@ interface GetFleetDetailsRequest {
 }
 
 interface GetVesselDetailsRequest {
-  vesselName: string;
+  vesselName?: string;
+  vessel_name?: string;
+  query?: string;
+  name?: string;
 }
 
 interface GetUserAssociatedVesselsRequest {
@@ -1427,7 +1430,8 @@ async function getArtifact(toolName: string, link: string): Promise<any> {
  * Get vessel details
  */
 async function getVesselDetails(args: GetVesselDetailsRequest): Promise<CallToolResult> {
-  const vesselName = args.vesselName;
+  // Check for different parameter variations and assign to vesselName
+  const vesselName = args.vesselName || args.vessel_name || args.query || args.name;
 
   if (!vesselName) {
     return {
