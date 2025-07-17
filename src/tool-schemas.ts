@@ -202,13 +202,14 @@ export const communicationTools: Tool[] = [
     },
     {
       name: "get_fleet_details",
-      description: "Retrieves imo number of the fleet . Fleet name is required for fleet imo search",
+      description: "Retrieves IMO number of vessels in a specific fleet. The complete fleet name must be provided exactly as it appears in the system.",
       inputSchema: {
           type: "object",
           properties: {
               fleetName: {
                   type: "string",
-                  description: "Pass the fleet name to search for the fleet imo number"
+                  description: "The complete and exact fleet name as specified by the user. Always pass the ENTIRE fleet name string without truncation. Fleet names often include identifiers such as 'Dry', 'Wet', 'Fleet A', or location indicators - all of which must be included.",
+                  examples: ["SMPL DRY", "SMPL DRY FLEET A", "SDK FLEET DATHARAM", "FLEET SINGAPORE"]
               }
           },
           required: ["fleetName"]
