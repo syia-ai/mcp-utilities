@@ -202,7 +202,7 @@ export const communicationTools: Tool[] = [
     },
     {
       name: "get_fleet_details",
-      description: "Retrieves IMO number of vessels in a specific fleet. The complete fleet name must be provided exactly as it appears in the system.",
+      description: "Retrieves IMO number of vessels in a specific fleet. The complete fleet name must be provided exactly as specified by the user",
       inputSchema: {
           type: "object",
           properties: {
