@@ -51,7 +51,10 @@ interface ParseDocumentLinkRequest {
 }
 
 interface GetFleetDetailsRequest {
-  fleetName: string;
+  fleetName?: string;
+  fleet_name?: string;
+  query?: string;
+  name?: string;
 }
 
 interface GetVesselDetailsRequest {
@@ -1568,7 +1571,7 @@ async function getVesselDetails(args: GetVesselDetailsRequest): Promise<CallTool
 }
 
 async function getFleetDetails(args: GetFleetDetailsRequest): Promise<CallToolResult> {
-  const fleetName = args.fleetName;
+  const fleetName = args.fleetName || args.fleet_name || args.query || args.name;
 
   if (!fleetName) {
     return {
